@@ -1,75 +1,62 @@
+const IMAGE_TIMEOUT_MS = 15000;
 
-export const waitForImage = (img: HTMLImageElement): Promise<void> => {
-  return new Promise((resolve) => {
+const isRemoteSource = (src: string) => /^https?:\/\//i.test(src);
+
+export const waitForImage = (img: HTMLImageElement): Promise<void> =>
+  new Promise(resolve => {
     if (img.complete && img.naturalHeight !== 0) {
-      console.log('Imagem já carregada:', img.src);
       resolve();
       return;
     }
-    
-    const timeout = setTimeout(() => {
-      console.warn('Timeout ao carregar imagem, continuando mesmo assim:', img.src);
-      resolve();
-    }, 15000);
 
-    img.onload = () => {
-      console.log('Imagem carregada com sucesso:', img.src);
-      clearTimeout(timeout);
+    const cleanup = (timeoutId: number) => {
+      window.clearTimeout(timeoutId);
+      img.removeEventListener("load", onLoad);
+      img.removeEventListener("error", onError);
+    };
+
+    const onLoad = () => {
+      cleanup(timeoutId);
       resolve();
     };
-    
-    img.onerror = (error) => {
-      console.error('Erro ao carregar imagem, continuando mesmo assim:', img.src, error);
-      clearTimeout(timeout);
+
+    const onError = () => {
+      cleanup(timeoutId);
       resolve();
     };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup(timeoutId);
+      resolve();
+    }, IMAGE_TIMEOUT_MS);
+
+    img.addEventListener("load", onLoad, { once: true });
+    img.addEventListener("error", onError, { once: true });
   });
-};
 
 export const preloadImages = async (element: HTMLElement): Promise<void> => {
-  console.log('=== INICIANDO PRÉ-CARREGAMENTO DE IMAGENS ===');
-  const images = Array.from(element.querySelectorAll('img')) as HTMLImageElement[];
-  console.log(`Encontradas ${images.length} imagens para carregar`);
-  
+  const images = Array.from(element.querySelectorAll("img")) as HTMLImageElement[];
+
   if (images.length === 0) {
-    console.log('Nenhuma imagem encontrada, prosseguindo');
     return;
   }
 
-  // Configurar todas as imagens primeiro
-  images.forEach((img, index) => {
-    console.log(`Configurando imagem ${index + 1}:`, img.src);
-    img.crossOrigin = 'anonymous';
-    
-    // Cache busting mais simples
-    if (!img.src.includes('?t=')) {
-      const separator = img.src.includes('?') ? '&' : '?';
-      img.src = img.src + separator + 't=' + Date.now();
-    }
-  });
+  await Promise.all(
+    images.map(async img => {
+      if (!img.crossOrigin && isRemoteSource(img.src)) {
+        img.crossOrigin = "anonymous";
+      }
 
-  // Aguardar carregamento em lotes menores para evitar sobrecarga
-  const batchSize = 3;
-  for (let i = 0; i < images.length; i += batchSize) {
-    const batch = images.slice(i, i + batchSize);
-    console.log(`Processando lote ${Math.floor(i/batchSize) + 1}/${Math.ceil(images.length/batchSize)}`);
-    
-    const batchPromises = batch.map(async (img, batchIndex) => {
-      const globalIndex = i + batchIndex;
-      console.log(`Aguardando carregamento da imagem ${globalIndex + 1}/${images.length}`);
+      if (typeof img.decode === "function") {
+        try {
+          await img.decode();
+          return;
+        } catch {
+          // Ignore decode errors and fallback to load event
+        }
+      }
+
       await waitForImage(img);
-      console.log(`Imagem ${globalIndex + 1} processada`);
-    });
-
-    await Promise.allSettled(batchPromises);
-    
-    // Pequena pausa entre lotes
-    if (i + batchSize < images.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
-  
-  console.log('Aguardando tempo adicional para renderização...');
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  console.log('Pré-carregamento concluído');
+    }),
+  );
 };

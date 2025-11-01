@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, Trash2, Calendar, Building, User } from 'lucide-react';
-import { useVistoriasSupabase } from '@/hooks/useVistoriasSupabase';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import DetalhesVistoria from './visualizar-vistoria/DetalhesVistoria';
-import EditarVistoriaSupabase from './EditarVistoriaSupabase';
-import { useCurrentProfile } from '@/hooks/useCurrentProfile';
+import React, { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Eye, Trash2, Calendar, Building, User } from "lucide-react";
+import { useVistoriasSupabase } from "@/hooks/useVistoriasSupabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import DetalhesVistoria from "./visualizar-vistoria/DetalhesVistoria";
+import EditarVistoriaSupabase from "./EditarVistoriaSupabase";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ListaVistoriasSupabaseProps {
   onNovaVistoria: () => void;
@@ -16,35 +34,71 @@ interface ListaVistoriasSupabaseProps {
 
 const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps) => {
   const { vistorias, loading, excluirVistoria } = useVistoriasSupabase();
-  const [filtro, setFiltro] = useState('');
+  const [numeroFiltro, setNumeroFiltro] = useState("");
+  const [condominioFiltro, setCondominioFiltro] = useState<"todos" | string>("todos");
+  const [responsavelFiltro, setResponsavelFiltro] = useState<"todos" | string>("todos");
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
   const [vistoriaSelecionada, setVistoriaSelecionada] = useState<string | null>(null);
   const [modoEdicao, setModoEdicao] = useState(false);
   const { isSindico, loading: loadingRole } = useCurrentProfile();
   const isRestrict = isSindico || loadingRole;
 
-  const vistoriasFiltradas = vistorias.filter(vistoria =>
-    vistoria.numero_interno.toLowerCase().includes(filtro.toLowerCase()) ||
-    vistoria.condominio?.nome.toLowerCase().includes(filtro.toLowerCase()) ||
-    vistoria.responsavel.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const condominiosDisponiveis = useMemo(() => {
+    const nomes = vistorias
+      .map(v => v.condominio?.nome)
+      .filter((nome): nome is string => Boolean(nome));
+    return Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [vistorias]);
+
+  const responsaveisDisponiveis = useMemo(() => {
+    const nomes = vistorias.map(v => v.responsavel).filter((nome): nome is string => Boolean(nome));
+    return Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [vistorias]);
+
+  const vistoriasFiltradas = useMemo(() => {
+    return vistorias.filter(vistoria => {
+      const numeroMatches = numeroFiltro
+        ? vistoria.numero_interno.toLowerCase().includes(numeroFiltro.toLowerCase())
+        : true;
+
+      const condominioMatches =
+        condominioFiltro === "todos" || vistoria.condominio?.nome === condominioFiltro;
+
+      const responsavelMatches =
+        responsavelFiltro === "todos" || vistoria.responsavel === responsavelFiltro;
+
+      const data = vistoria.data_vistoria?.slice(0, 10) || "";
+      const dataInicialMatches = dataInicial ? data >= dataInicial : true;
+      const dataFinalMatches = dataFinal ? data <= dataFinal : true;
+
+      return (
+        numeroMatches &&
+        condominioMatches &&
+        responsavelMatches &&
+        dataInicialMatches &&
+        dataFinalMatches
+      );
+    });
+  }, [vistorias, numeroFiltro, condominioFiltro, responsavelFiltro, dataInicial, dataFinal]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString("pt-BR");
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Conforme':
-        return 'bg-green-100 text-green-800';
-      case 'Não Conforme':
-        return 'bg-red-100 text-red-800';
-      case 'Requer Atenção':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Em Andamento':
-        return 'bg-blue-100 text-blue-800';
+      case "Conforme":
+        return "bg-green-100 text-green-800";
+      case "Não Conforme":
+        return "bg-red-100 text-red-800";
+      case "Requer Atenção":
+        return "bg-yellow-100 text-yellow-800";
+      case "Em Andamento":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -67,9 +121,17 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
     setModoEdicao(false);
   };
 
+  const handleLimparFiltros = () => {
+    setNumeroFiltro("");
+    setCondominioFiltro("todos");
+    setResponsavelFiltro("todos");
+    setDataInicial("");
+    setDataFinal("");
+  };
+
   if (vistoriaSelecionada) {
     const vistoria = vistorias.find(v => v.id === vistoriaSelecionada);
-    
+
     if (!vistoria) {
       return (
         <div className="text-center py-8">
@@ -82,27 +144,13 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
     }
 
     if (modoEdicao) {
-      return (
-        <EditarVistoriaSupabase 
-          vistoriaId={vistoriaSelecionada}
-          onBack={handleVoltar}
-        />
-      );
+      return <EditarVistoriaSupabase vistoriaId={vistoriaSelecionada} onBack={handleVoltar} />;
     }
 
-    return (
-      isRestrict ? (
-        <DetalhesVistoria 
-          vistoria={vistoria} 
-          onBack={handleVoltar}
-        />
-      ) : (
-        <DetalhesVistoria 
-          vistoria={vistoria} 
-          onBack={handleVoltar}
-          onEdit={handleEditar}
-        />
-      )
+    return isRestrict ? (
+      <DetalhesVistoria vistoria={vistoria} onBack={handleVoltar} />
+    ) : (
+      <DetalhesVistoria vistoria={vistoria} onBack={handleVoltar} onEdit={handleEditar} />
     );
   }
 
@@ -129,15 +177,71 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
         )}
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <Input
-            placeholder="Buscar por número, condomínio ou responsável..."
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+        <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col space-y-2">
+            <Label htmlFor="numero_interno">Nº Interno</Label>
+            <Input
+              id="numero_interno"
+              placeholder="Ex.: 2025-0004"
+              value={numeroFiltro}
+              onChange={e => setNumeroFiltro(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col space-y-2">
+            <Label>Condomínio</Label>
+            <Select value={condominioFiltro} onValueChange={setCondominioFiltro}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {condominiosDisponiveis.map(nome => (
+                  <SelectItem key={nome} value={nome}>
+                    {nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <Label>Responsável</Label>
+            <Select value={responsavelFiltro} onValueChange={setResponsavelFiltro}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {responsaveisDisponiveis.map(nome => (
+                  <SelectItem key={nome} value={nome}>
+                    {nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <Label>Período da Vistoria</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="date"
+                value={dataInicial}
+                onChange={e => setDataInicial(e.target.value)}
+                max={dataFinal || undefined}
+              />
+              <Input
+                type="date"
+                value={dataFinal}
+                onChange={e => setDataFinal(e.target.value)}
+                min={dataInicial || undefined}
+              />
+            </div>
+          </div>
+        </div>
+        <div>
+          <Button variant="outline" onClick={handleLimparFiltros} className="whitespace-nowrap">
+            Limpar filtros
+          </Button>
         </div>
       </div>
 
@@ -147,12 +251,14 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
             <Building size={48} className="mx-auto mb-4" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {vistorias.length === 0 ? 'Nenhuma vistoria encontrada' : 'Nenhuma vistoria corresponde ao filtro'}
+            {vistorias.length === 0
+              ? "Nenhuma vistoria encontrada"
+              : "Nenhuma vistoria corresponde ao filtro"}
           </h3>
           <p className="text-gray-500 mb-6">
-            {vistorias.length === 0 
-              ? 'Comece criando sua primeira vistoria.' 
-              : 'Tente ajustar os filtros de busca.'}
+            {vistorias.length === 0
+              ? "Comece criando sua primeira vistoria."
+              : "Tente ajustar os filtros de busca."}
           </p>
           {vistorias.length === 0 && !isRestrict && (
             <Button onClick={onNovaVistoria} className="bg-teal-600 hover:bg-teal-700">
@@ -163,15 +269,13 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
         </div>
       ) : (
         <div className="grid gap-6">
-          {vistoriasFiltradas.map((vistoria) => (
+          {vistoriasFiltradas.map(vistoria => (
             <Card key={vistoria.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center space-x-3">
                     <span>{vistoria.condominio?.nome}</span>
-                    <Badge className={getStatusColor(vistoria.status)}>
-                      {vistoria.status}
-                    </Badge>
+                    <Badge className={getStatusColor(vistoria.status)}>{vistoria.status}</Badge>
                   </CardTitle>
                   <div className="flex space-x-2">
                     <Button
@@ -194,7 +298,7 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
                           <AlertDialogHeader>
                             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Tem certeza que deseja excluir a vistoria #{vistoria.numero_interno}? 
+                              Tem certeza que deseja excluir a vistoria #{vistoria.numero_interno}?
                               Esta ação não pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
@@ -237,18 +341,21 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
                     </div>
                   </div>
                 </div>
-                
+
                 {vistoria.observacoes_gerais && (
                   <div className="mt-4 p-3 bg-gray-50 rounded">
                     <p className="text-sm text-gray-700">
-                      <span className="font-medium">Observações:</span> {vistoria.observacoes_gerais}
+                      <span className="font-medium">Observações:</span>{" "}
+                      {vistoria.observacoes_gerais}
                     </p>
                   </div>
                 )}
-                
+
                 <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
                   <span>{vistoria.grupos.length} grupo(s) de vistoria</span>
-                  <span>Atualizada em {formatDate(vistoria.updated_at || vistoria.created_at || '')}</span>
+                  <span>
+                    Atualizada em {formatDate(vistoria.updated_at || vistoria.created_at || "")}
+                  </span>
                 </div>
               </CardContent>
             </Card>

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-export type UserRole = 'admin' | 'sindico' | string;
+export type UserRole = "admin" | "sindico" | string;
 
 interface CurrentProfile {
   id: string;
@@ -31,15 +31,15 @@ export const useCurrentProfile = () => {
 
       setLoading(true);
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, email, role')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("id, nome, email, role")
+        .eq("id", user.id)
         .single();
 
       if (!isMounted) return;
 
       if (error) {
-        console.error('Erro ao buscar perfil do usuário:', error);
+        console.error("Erro ao buscar perfil do usuário:", error);
         setError(error.message);
       } else {
         setProfile(data as CurrentProfile);
@@ -52,11 +52,11 @@ export const useCurrentProfile = () => {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user]);
 
   const role = profile?.role as UserRole | undefined;
-  const isSindico = role === 'sindico';
-  const isAdmin = role === 'admin';
+  const isSindico = role === "sindico";
+  const isAdmin = role === "admin";
 
   return { profile, role, isSindico, isAdmin, loading, error } as const;
 };

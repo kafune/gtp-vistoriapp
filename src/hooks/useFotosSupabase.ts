@@ -1,12 +1,15 @@
-
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { PatologiaResumo, registrarPatologiaFeedback } from "@/services/patologiaIA";
 
 export interface FotoUpload {
   file: File;
   descricao: string;
+  iaFeedbackId?: string | null;
+  iaResumo?: PatologiaResumo | null;
+  foiEditado?: boolean;
 }
 
 export interface FotoSalva {
@@ -33,10 +36,19 @@ export const useFotosSupabase = () => {
 
   const uploadFotos = async (
     grupoVistoriaId: string,
-    fotos: FotoUpload[]
+    fotos: FotoUpload[],
+    options?: {
+      vistoriaId?: string;
+      ambiente?: string;
+      grupo?: string;
+      item?: string;
+      status?: string;
+      condominioId?: string;
+      condominioNome?: string;
+    },
   ): Promise<FotoSalva[]> => {
     if (!user) {
-      throw new Error('Usuário não autenticado');
+      throw new Error("Usuário não autenticado");
     }
 
     if (fotos.length === 0) {
@@ -47,8 +59,8 @@ export const useFotosSupabase = () => {
     setUploadProgress({
       current: 0,
       total: fotos.length,
-      currentFileName: '',
-      percentage: 0
+      currentFileName: "",
+      percentage: 0,
     });
 
     const fotosUploadadas: FotoSalva[] = [];
@@ -66,49 +78,45 @@ export const useFotosSupabase = () => {
           current: i + 1,
           total: fotos.length,
           currentFileName: foto.file.name,
-          percentage: Math.round(((i + 1) / fotos.length) * 100)
+          percentage: Math.round(((i + 1) / fotos.length) * 100),
         });
 
         console.log(`Uploading foto ${i + 1}:`, nomeArquivo);
 
         // Upload do arquivo para o storage
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('fotos-vistoria')
+          .from("fotos-vistoria")
           .upload(nomeArquivo, foto.file, {
-            cacheControl: '3600',
-            upsert: false
+            cacheControl: "3600",
+            upsert: false,
           });
 
         if (uploadError) {
-          console.error('Erro no upload:', uploadError);
+          console.error("Erro no upload:", uploadError);
           throw uploadError;
         }
 
         // Obter URL pública do arquivo
-        const { data: urlData } = supabase.storage
-          .from('fotos-vistoria')
-          .getPublicUrl(nomeArquivo);
+        const { data: urlData } = supabase.storage.from("fotos-vistoria").getPublicUrl(nomeArquivo);
 
         // Salvar metadados no banco
         const { data: fotoData, error: dbError } = await supabase
-          .from('fotos_vistoria')
+          .from("fotos_vistoria")
           .insert({
             grupo_vistoria_id: grupoVistoriaId,
             arquivo_nome: foto.file.name,
             arquivo_url: urlData.publicUrl,
             descricao: foto.descricao,
             tamanho_bytes: foto.file.size,
-            tipo_mime: foto.file.type
+            tipo_mime: foto.file.type,
           })
           .select()
           .single();
 
         if (dbError) {
-          console.error('Erro ao salvar metadados:', dbError);
+          console.error("Erro ao salvar metadados:", dbError);
           // Tentar remover arquivo do storage se falhou salvar no banco
-          await supabase.storage
-            .from('fotos-vistoria')
-            .remove([nomeArquivo]);
+          await supabase.storage.from("fotos-vistoria").remove([nomeArquivo]);
           throw dbError;
         }
 
@@ -116,10 +124,34 @@ export const useFotosSupabase = () => {
           id: fotoData.id,
           arquivo_nome: fotoData.arquivo_nome,
           arquivo_url: fotoData.arquivo_url,
-          descricao: fotoData.descricao || '',
+          descricao: fotoData.descricao || "",
           tamanho_bytes: fotoData.tamanho_bytes || 0,
-          tipo_mime: fotoData.tipo_mime || ''
+          tipo_mime: fotoData.tipo_mime || "",
         });
+
+        try {
+          if (foto.descricao && foto.descricao.trim().length > 0) {
+            await registrarPatologiaFeedback({
+              fotoId: fotoData.id,
+              grupoVistoriaId,
+              vistoriaId: options?.vistoriaId,
+              usuarioId: user.id,
+              descricao: foto.descricao,
+              origem: foto.iaFeedbackId ? "ia" : "usuario",
+              feedbackId: foto.iaFeedbackId ?? undefined,
+              foiEditado: foto.foiEditado,
+              resumo: foto.iaResumo ?? undefined,
+              ambiente: options?.ambiente,
+              grupo: options?.grupo,
+              item: options?.item,
+              status: options?.status,
+              condominioId: options?.condominioId,
+              condominioNome: options?.condominioNome,
+            });
+          }
+        } catch (registroError) {
+          console.error("Erro ao registrar feedback da descrição de patologia:", registroError);
+        }
 
         console.log(`Foto ${i + 1} salva com sucesso:`, fotoData);
       }
@@ -131,7 +163,7 @@ export const useFotosSupabase = () => {
 
       return fotosUploadadas;
     } catch (error) {
-      console.error('Erro no upload de fotos:', error);
+      console.error("Erro no upload de fotos:", error);
       toast({
         title: "Erro",
         description: "Não foi possível enviar as fotos.",
@@ -148,23 +180,20 @@ export const useFotosSupabase = () => {
     try {
       // Extrair caminho do arquivo da URL
       const url = new URL(arquivoUrl);
-      const pathSegments = url.pathname.split('/');
-      const nomeArquivo = pathSegments.slice(-3).join('/'); // user_id/grupo_id/arquivo
+      const pathSegments = url.pathname.split("/");
+      const nomeArquivo = pathSegments.slice(-3).join("/"); // user_id/grupo_id/arquivo
 
       // Remover do storage
       const { error: storageError } = await supabase.storage
-        .from('fotos-vistoria')
+        .from("fotos-vistoria")
         .remove([nomeArquivo]);
 
       if (storageError) {
-        console.error('Erro ao remover do storage:', storageError);
+        console.error("Erro ao remover do storage:", storageError);
       }
 
       // Remover do banco
-      const { error: dbError } = await supabase
-        .from('fotos_vistoria')
-        .delete()
-        .eq('id', fotoId);
+      const { error: dbError } = await supabase.from("fotos_vistoria").delete().eq("id", fotoId);
 
       if (dbError) {
         throw dbError;
@@ -175,7 +204,7 @@ export const useFotosSupabase = () => {
         description: "Foto removida com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao remover foto:', error);
+      console.error("Erro ao remover foto:", error);
       toast({
         title: "Erro",
         description: "Não foi possível remover a foto.",
@@ -189,6 +218,6 @@ export const useFotosSupabase = () => {
     uploadFotos,
     removerFoto,
     uploading,
-    uploadProgress
+    uploadProgress,
   };
 };

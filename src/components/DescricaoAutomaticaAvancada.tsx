@@ -1,354 +1,199 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Loader2, Sparkles, Settings } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
-import { useBaseConhecimento } from '@/hooks/useBaseConhecimento';
-import { Badge } from '@/components/ui/badge';
+import React, { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Brain, Loader2, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useConfiguracoes } from "@/hooks/useConfiguracoes";
+import {
+  PatologiaSugestao,
+  PatologiaResumo,
+  PatologiaContexto,
+  generatePatologiaDescricao,
+  fileToBase64,
+} from "@/services/patologiaIA";
+import { Badge } from "@/components/ui/badge";
 
 interface DescricaoAutomaticaAvancadaProps {
   imageFile: File;
-  onDescriptionGenerated: (description: string) => void;
+  fotoUrl?: string;
+  fotoId?: string;
+  grupoVistoriaId?: string;
+  vistoriaId?: string;
+  usuarioId?: string;
+  onDescriptionGenerated: (
+    description: string,
+    metadata?: { feedbackId?: string | null; resumo?: PatologiaResumo },
+  ) => void;
   disabled?: boolean;
   currentDescription?: string;
   ambiente?: string;
   grupo?: string;
+  item?: string;
   status?: string;
   condominioInfo?: {
+    id?: string;
     nome: string;
-    tipo?: string; // residencial, comercial, industrial
+    tipo?: string;
   };
+  responsavel?: string;
 }
+
+const analysisMode: Record<string, string> = {
+  auto: "Análise Automática Inteligente",
+  estrutural: "Foco Estrutural e Construtivo",
+  instalacoes: "Instalações (Elétrica/Hidráulica)",
+  acabamentos: "Acabamentos e Revestimentos",
+  seguranca: "Segurança e Acessibilidade",
+  conservacao: "Estado de Conservação",
+  manutencao: "Manutenção Necessária",
+  detalhado: "Análise Técnica Detalhada",
+};
 
 const DescricaoAutomaticaAvancada: React.FC<DescricaoAutomaticaAvancadaProps> = ({
   imageFile,
+  fotoUrl,
+  fotoId,
+  grupoVistoriaId,
+  vistoriaId,
+  usuarioId,
   onDescriptionGenerated,
   disabled,
-  currentDescription = '',
+  currentDescription = "",
   ambiente,
   grupo,
+  item,
   status,
-  condominioInfo
+  condominioInfo,
+  responsavel,
 }) => {
   const { toast } = useToast();
+  const { obterConfiguracao, loading: loadingConfiguracoes } = useConfiguracoes();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<string>('auto');
-  const { obterConfiguracao, loading } = useConfiguracoes();
-  const { buscarConhecimentoRelevante } = useBaseConhecimento();
+  const [selectedMode, setSelectedMode] = useState<string>("auto");
+  const [resultado, setResultado] = useState<PatologiaSugestao | null>(null);
+  const [erroIA, setErroIA] = useState<string | null>(null);
 
-  // Tipos de análise especializada
-  const analysisMode = {
-    auto: 'Análise Automática Inteligente',
-    estrutural: 'Foco Estrutural e Construtivo',
-    instalacoes: 'Instalações (Elétrica/Hidráulica)',
-    acabamentos: 'Acabamentos e Revestimentos',
-    seguranca: 'Segurança e Acessibilidade',
-    conservacao: 'Estado de Conservação',
-    manutencao: 'Manutenção Necessária',
-    detalhado: 'Análise Técnica Detalhada'
-  };
+  const hasCustomInstruction = currentDescription.trim().length > 0;
+  const iaHabilitada = obterConfiguracao("ia_auto_descricao", false);
 
-  // Detectar o tipo de API baseado na chave
-  const detectApiProvider = (apiKey: string) => {
-    if (apiKey.startsWith('sk-')) {
-      return { provider: 'openai', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' };
-    } else if (apiKey.startsWith('gsk_')) {
-      return { provider: 'groq', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.2-11b-vision-preview' };
+  const contextoBase: Omit<PatologiaContexto, "imageBase64"> = useMemo(
+    () => ({
+      fotoId,
+      fotoUrl,
+      grupoVistoriaId,
+      vistoriaId,
+      usuarioId,
+      ambiente,
+      grupo,
+      item,
+      status,
+      condominioId: condominioInfo?.id,
+      condominioNome: condominioInfo?.nome,
+      responsavel,
+      modo: hasCustomInstruction ? "custom" : selectedMode,
+      descricaoAtual: hasCustomInstruction ? currentDescription : undefined,
+    }),
+    [
+      fotoId,
+      fotoUrl,
+      grupoVistoriaId,
+      vistoriaId,
+      usuarioId,
+      ambiente,
+      grupo,
+      item,
+      status,
+      condominioInfo?.id,
+      condominioInfo?.nome,
+      responsavel,
+      hasCustomInstruction,
+      selectedMode,
+      currentDescription,
+    ],
+  );
+
+  const handleGenerate = async () => {
+    if (disabled) {
+      return;
     }
-    return null;
-  };
 
-  // Gerar contexto inteligente baseado nas informações disponíveis
-  const buildContextualPrompt = async (mode: string) => {
-    const exemploDescricoes = obterConfiguracao('agente_exemplos_descricoes', []);
-    const exemplosTexto = exemploDescricoes.length > 0 
-      ? `\n\nEXEMPLOS DO SEU PADRÃO DE ESCRITA:\n${exemploDescricoes.map((ex: string, i: number) => `${i + 1}. ${ex}`).join('\n')}\n\nSiga este mesmo estilo e estrutura nos exemplos acima.`
-      : '';
-
-    // Buscar conhecimento relevante baseado no contexto
-    const contextoAnalise = `${ambiente || ''} ${grupo || ''} ${selectedMode}`.trim();
-    const conhecimentoRelevante = await buscarConhecimentoRelevante(contextoAnalise, grupo?.toLowerCase());
-    
-    const conhecimentoTexto = conhecimentoRelevante.length > 0
-      ? `\n\nBASE DE CONHECIMENTO TÉCNICO RELEVANTE:\n${conhecimentoRelevante.map((c, i) => 
-          `${i + 1}. ${c.titulo} (${c.categoria}):\n${c.conteudo_extraido.substring(0, 500)}...\n`
-        ).join('\n')}\n\nUse este conhecimento técnico para enriquecer sua análise quando aplicável.`
-      : '';
-
-    const baseContext = `
-Você é um engenheiro especialista em vistorias prediais com 20+ anos de experiência.
-Analise esta imagem de vistoria predial e forneça uma descrição técnica precisa e útil.
-
-CONTEXTO DA VISTORIA:
-${ambiente ? `- Ambiente: ${ambiente}` : ''}
-${grupo ? `- Grupo de Vistoria: ${grupo}` : ''}
-${status ? `- Status Atual: ${status}` : ''}
-${condominioInfo?.nome ? `- Condomínio: ${condominioInfo.nome}` : ''}
-${condominioInfo?.tipo ? `- Tipo: ${condominioInfo.tipo}` : ''}${exemplosTexto}${conhecimentoTexto}
-`;
-
-    const specificPrompts = {
-      auto: `
-ANÁLISE INTELIGENTE:
-- Identifique automaticamente o principal elemento/atividade/problema
-- Use linguagem técnica clara e objetiva, NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido e natural, como um parágrafo técnico
-- Inicie descrevendo o elemento e sua condição, seguindo com detalhes em sequência natural
-- Priorize informações mais relevantes para decisões de manutenção
-- IMPORTANTE: Mantenha o texto COMPLETO dentro de 280 caracteres para evitar cortes
-- Finalize frases adequadamente sem cortar no meio
-
-ESTILO: Texto descritivo técnico corrido, como um relatório de vistoria profissional`,
-
-      estrutural: `
-FOCO ESTRUTURAL:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido e técnico sobre elementos estruturais
-- Analise elementos estruturais: lajes, vigas, pilares, paredes, fundações
-- Identifique fissuras, rachaduras, deformações, deslocamentos em um parágrafo fluido
-- Avalie materiais: concreto, alvenaria, estrutura metálica
-- Note sinais de deterioração, corrosão ou sobrecarga
-- MÁXIMO 400 caracteres`,
-
-      instalacoes: `
-FOCO INSTALAÇÕES:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido sobre as instalações observadas
-- Identifique instalações elétricas: quadros, cabos, tomadas, luminárias
-- Observe instalações hidráulicas: tubulações, registros, válvulas
-- Note condições de funcionamento, adequação às normas em texto fluido
-- Identifique problemas: vazamentos, sobrecarga, obsolescência
-- MÁXIMO 350 caracteres`,
-
-      acabamentos: `
-FOCO ACABAMENTOS:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido sobre revestimentos e acabamentos
-- Analise revestimentos: pisos, paredes, tetos em descrição fluida
-- Observe pintura, azulejos, cerâmica, pedras naturais
-- Note desgaste, manchas, descolamentos, trincas em parágrafo natural
-- Avalie necessidade de reforma ou manutenção
-- IMPORTANTE: Mantenha o texto COMPLETO dentro de 280 caracteres para evitar cortes`,
-
-      seguranca: `
-FOCO SEGURANÇA:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido sobre aspectos de segurança
-- Identifique elementos de segurança: grades, portões, corrimãos
-- Observe acessibilidade: rampas, sinalização, obstáculos em descrição fluida
-- Note riscos: superfícies escorregadias, obstáculos, iluminação inadequada
-- Avalie conformidade com normas de segurança
-- MÁXIMO 350 caracteres`,
-
-      conservacao: `
-FOCO CONSERVAÇÃO:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido sobre o estado de conservação
-- Avalie estado geral de conservação dos elementos em parágrafo fluido
-- Identifique sinais de deterioração natural ou acelerada
-- Note áreas que precisam de intervenção imediata
-- Classifique: Bom, Regular, Ruim, Crítico
-- IMPORTANTE: Mantenha o texto COMPLETO dentro de 280 caracteres para evitar cortes`,
-
-      manutencao: `
-FOCO MANUTENÇÃO:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo corrido sobre necessidades de manutenção
-- Identifique necessidades de manutenção preventiva ou corretiva em parágrafo fluido
-- Priorize intervenções por urgência e impacto
-- Sugira prazos para ações necessárias
-- Note materiais e métodos recomendados
-- MÁXIMO 400 caracteres`,
-
-      detalhado: `
-ANÁLISE TÉCNICA DETALHADA:
-- NUNCA comece com "A imagem mostra" ou similares
-- Escreva um texto descritivo técnico corrido e detalhado
-- Forneça análise completa e minuciosa em parágrafo fluido
-- Inclua aspectos técnicos, normativos e de segurança
-- Detalhe materiais, métodos construtivos, patologias em texto natural
-- Sugira investigações adicionais se necessário
-- MÁXIMO 600 caracteres`
-    };
-
-    return baseContext + specificPrompts[mode as keyof typeof specificPrompts];
-  };
-
-  const generateDescription = async () => {
-    if (loading) {
+    if (loadingConfiguracoes) {
       toast({
-        title: "Carregando",
-        description: "Aguarde as configurações serem carregadas...",
-        variant: "destructive"
+        title: "Carregando configurações",
+        description: "Aguarde um instante e tente novamente.",
       });
       return;
     }
 
-    const enableAutoDescription = obterConfiguracao('ia_auto_descricao', false);
-    const apiKey = obterConfiguracao('api_key_openai', '');
-    
-    if (!enableAutoDescription) {
+    if (!iaHabilitada) {
       toast({
-        title: "Função Desabilitada",
-        description: "Habilite a descrição automática nas configurações primeiro.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!apiKey) {
-      toast({
-        title: "API Key Necessária",
-        description: "Configure a API Key (OpenAI ou Groq) nas configurações.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const apiInfo = detectApiProvider(apiKey);
-    if (!apiInfo) {
-      toast({
-        title: "API Key Inválida",
-        description: "A API Key deve começar com 'sk-' (OpenAI) ou 'gsk_' (Groq).",
-        variant: "destructive"
+        title: "IA Desativada",
+        description: "Ative a descrição automática nas Configurações para usar este recurso.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsGenerating(true);
+    setErroIA(null);
 
     try {
-      // Converter imagem para base64
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
+      const imageBase64 = await fileToBase64(imageFile);
+      const sugestao = await generatePatologiaDescricao({
+        ...contextoBase,
+        imageBase64,
       });
 
-      // Verificar se há instrução específica no campo de descrição
-      const hasSpecificInstruction = currentDescription.trim().length > 0;
-      
-      let messages = [];
-      
-      if (hasSpecificInstruction) {
-        // Modo instrução específica
-        messages = [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `INSTRUÇÃO ESPECÍFICA: ${currentDescription.trim()}\n\nAnalise a imagem de vistoria seguindo exatamente esta instrução.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
-                }
-              }
-            ]
-          }
-        ];
-      } else {
-        // Modo contextual inteligente
-        const systemPrompt = await buildContextualPrompt(selectedMode);
-        
-        messages = [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Analise esta imagem de vistoria seguindo as diretrizes estabelecidas.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
-                }
-              }
-            ]
-          }
-        ];
-      }
-
-      const maxTokens = {
-        auto: 150,
-        estrutural: 200,
-        instalacoes: 180,
-        acabamentos: 150,
-        seguranca: 180,
-        conservacao: 150,
-        manutencao: 200,
-        detalhado: 350
-      };
-
-      const requestBody = {
-        model: apiInfo.model,
-        messages: messages,
-        max_tokens: hasSpecificInstruction ? 300 : maxTokens[selectedMode as keyof typeof maxTokens],
-        temperature: hasSpecificInstruction ? 0.7 : 0.3
-      };
-
-      const response = await fetch(apiInfo.url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      setResultado(sugestao);
+      onDescriptionGenerated(sugestao.descricao, {
+        feedbackId: sugestao.feedbackId,
+        resumo: sugestao.resumo,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Erro na API ${apiInfo.provider}: ${response.status} - ${errorData.error?.message || 'Erro desconhecido'}`);
-      }
-
-      const data = await response.json();
-      const description = data.choices[0].message.content;
-
-      onDescriptionGenerated(description);
-
-      const modeLabel = hasSpecificInstruction ? 'Instrução Específica' : analysisMode[selectedMode as keyof typeof analysisMode];
       toast({
-        title: "Descrição Gerada",
-        description: `${modeLabel} via ${apiInfo.provider.toUpperCase()} - ${description.length} caracteres`,
+        title: "Descrição gerada pela IA",
+        description: `Diagnóstico entregue (${sugestao.resumo.gravidade}) com ${Math.round(
+          sugestao.resumo.confianca * 100,
+        )}% confiança.`,
       });
-
     } catch (error) {
-      console.error('Erro ao gerar descrição:', error);
+      console.error("Erro ao gerar descrição de patologia:", error);
+      setErroIA(
+        error instanceof Error ? error.message : "Não foi possível gerar a descrição automática.",
+      );
       toast({
-        title: "Erro na Geração",
-        description: error instanceof Error ? error.message : "Não foi possível gerar a descrição.",
-        variant: "destructive"
+        title: "Erro na geração",
+        description:
+          error instanceof Error ? error.message : "Não foi possível gerar a descrição automática.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const hasCustomInstruction = currentDescription.trim().length > 0;
-
   return (
     <div className="space-y-3">
-      {/* Seletor de Modo de Análise */}
       {!hasCustomInstruction && (
         <div className="space-y-2">
           <label className="text-sm font-medium">Tipo de Análise</label>
-          <Select value={selectedMode} onValueChange={setSelectedMode}>
+          <Select
+            value={selectedMode}
+            onValueChange={setSelectedMode}
+            disabled={disabled || isGenerating}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione o tipo de análise" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(analysisMode).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
+              {Object.entries(analysisMode).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>
               ))}
@@ -357,48 +202,91 @@ ANÁLISE TÉCNICA DETALHADA:
         </div>
       )}
 
-      {/* Indicadores de Contexto */}
-      {(ambiente || grupo || condominioInfo?.nome) && (
-        <div className="flex flex-wrap gap-1">
-          {ambiente && <Badge variant="secondary" className="text-xs">{ambiente}</Badge>}
-          {grupo && <Badge variant="outline" className="text-xs">{grupo}</Badge>}
-          {condominioInfo?.tipo && <Badge variant="outline" className="text-xs">{condominioInfo.tipo}</Badge>}
-        </div>
-      )}
+      <div className="flex items-center gap-2 text-xs text-gray-500">
+        <Sparkles size={14} className="text-amber-500" />
+        <span>A IA utiliza histórico validado e aprende com as correções aprovadas.</span>
+      </div>
 
-      {/* Botão de Geração */}
       <Button
-        onClick={generateDescription}
-        disabled={disabled || isGenerating || loading}
-        variant={hasCustomInstruction ? "default" : "outline"}
-        size="sm"
-        className="w-full"
+        onClick={handleGenerate}
+        disabled={disabled || isGenerating}
+        className="w-full bg-brand-purple text-white hover:bg-brand-purple-light"
       >
         {isGenerating ? (
           <>
-            <Loader2 size={16} className="mr-2 animate-spin" />
-            Analisando...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Gerando descrição detalhada...
           </>
         ) : (
           <>
-            {hasCustomInstruction ? (
-              <Settings size={16} className="mr-2" />
-            ) : (
-              <Brain size={16} className="mr-2" />
-            )}
-            {hasCustomInstruction 
-              ? 'Executar Instrução' 
-              : `IA: ${analysisMode[selectedMode as keyof typeof analysisMode]}`
-            }
-            <Sparkles size={14} className="ml-2" />
+            <Brain className="mr-2 h-4 w-4" />
+            Gerar descrição com IA
           </>
         )}
       </Button>
 
-      {hasCustomInstruction && (
-        <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-          🎯 Modo personalizado ativo: "{currentDescription.substring(0, 50)}..."
-        </p>
+      {erroIA && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          {erroIA}
+        </div>
+      )}
+
+      {resultado && (
+        <div className="space-y-3 rounded-md border border-gray-100 bg-gray-50 p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-gray-700">Resumo técnico</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                Gravidade: {resultado.resumo.gravidade}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Confiança: {Math.round(resultado.resumo.confianca * 100)}%
+              </Badge>
+            </div>
+          </div>
+
+          {resultado.resumo.patologias.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600 uppercase">
+                Patologias identificadas
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {resultado.resumo.patologias.map(patologia => (
+                  <Badge key={patologia} variant="secondary">
+                    {patologia}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {resultado.resumo.recomendacoes && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600 uppercase">Recomendações</p>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {resultado.resumo.recomendacoes}
+              </p>
+            </div>
+          )}
+
+          {resultado.exemplos.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600 uppercase">
+                Base de conhecimento aplicada
+              </p>
+              <ul className="space-y-2 text-xs text-gray-600">
+                {resultado.exemplos.slice(0, 3).map(exemplo => (
+                  <li key={exemplo.feedback_id} className="rounded-md bg-white p-2 shadow-sm">
+                    <span className="block text-[11px] text-gray-400">
+                      Similaridade: {(exemplo.similarity * 100).toFixed(1)}%
+                    </span>
+                    <span className="block text-gray-700">{exemplo.descricao}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

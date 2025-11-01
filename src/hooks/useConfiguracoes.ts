@@ -1,12 +1,11 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConfiguracaoSistema {
   id: string;
   chave: string;
-  valor: any;
+  valor: unknown;
   descricao?: string;
   categoria: string;
   created_at?: string;
@@ -14,84 +13,86 @@ interface ConfiguracaoSistema {
 }
 
 export const useConfiguracoes = () => {
-  const [configuracoes, setConfiguracoes] = useState<Record<string, any>>({});
+  const [configuracoes, setConfiguracoes] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   // Carregar configurações do sistema
-  const carregarConfiguracoes = async () => {
+  const carregarConfiguracoes = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('configuracoes_sistema')
-        .select('*');
+      const { data, error } = await supabase.from("configuracoes_sistema").select("*");
 
       if (error) {
-        console.error('Erro ao carregar configurações:', error);
+        console.error("Erro ao carregar configurações:", error);
         toast({
           title: "Erro",
           description: "Não foi possível carregar as configurações.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
 
       // Converter array de configurações em objeto
-      const configObj: Record<string, any> = {};
+      const configObj: Record<string, unknown> = {};
       data?.forEach((config: ConfiguracaoSistema) => {
         // Tratar valores que podem estar com dupla serialização
-        let valor = config.valor;
-        
+        let valor: unknown = config.valor;
+
         // Se o valor for uma string que parece ser JSON, tentar fazer parse
-        if (typeof valor === 'string') {
+        if (typeof valor === "string") {
+          const rawValor = valor;
           try {
             // Primeiro parse
-            valor = JSON.parse(valor);
+            const firstParse = JSON.parse(rawValor);
             // Se ainda for string após o primeiro parse, tentar novamente
-            if (typeof valor === 'string') {
-              valor = JSON.parse(valor);
+            if (typeof firstParse === "string") {
+              valor = JSON.parse(firstParse);
+            } else {
+              valor = firstParse;
             }
           } catch {
             // Se não conseguir fazer parse, usar o valor como string limpa (sem aspas)
-            valor = valor.replace(/^"(.*)"$/, '$1');
+            valor = rawValor.replace(/^"(.*)"$/, "$1");
           }
         }
-        
+
         configObj[config.chave] = valor;
       });
 
       setConfiguracoes(configObj);
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      console.error("Erro ao carregar configurações:", error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar as configurações.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   // Salvar configuração individual
-  const salvarConfiguracao = async (chave: string, valor: any) => {
+  const salvarConfiguracao = async (chave: string, valor: unknown) => {
     try {
-      const { error } = await supabase
-        .from('configuracoes_sistema')
-        .upsert({
+      const { error } = await supabase.from("configuracoes_sistema").upsert(
+        {
           chave,
           valor: valor, // Não fazer JSON.stringify aqui, deixar o Supabase tratar
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'chave'
-        });
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "chave",
+        },
+      );
 
       if (error) {
-        console.error('Erro ao salvar configuração:', error);
+        console.error("Erro ao salvar configuração:", error);
         toast({
           title: "Erro",
           description: `Não foi possível salvar a configuração ${chave}.`,
-          variant: "destructive"
+          variant: "destructive",
         });
         return false;
       }
@@ -99,37 +100,35 @@ export const useConfiguracoes = () => {
       // Atualizar estado local
       setConfiguracoes(prev => ({
         ...prev,
-        [chave]: valor
+        [chave]: valor,
       }));
 
       return true;
     } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
+      console.error("Erro ao salvar configuração:", error);
       return false;
     }
   };
 
   // Salvar múltiplas configurações
-  const salvarConfiguracoes = async (novasConfiguracoes: Record<string, any>) => {
+  const salvarConfiguracoes = async (novasConfiguracoes: Record<string, unknown>) => {
     try {
       const updates = Object.entries(novasConfiguracoes).map(([chave, valor]) => ({
         chave,
         valor: valor, // Não fazer JSON.stringify aqui, deixar o Supabase tratar
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       }));
 
-      const { error } = await supabase
-        .from('configuracoes_sistema')
-        .upsert(updates, {
-          onConflict: 'chave'
-        });
+      const { error } = await supabase.from("configuracoes_sistema").upsert(updates, {
+        onConflict: "chave",
+      });
 
       if (error) {
-        console.error('Erro ao salvar configurações:', error);
+        console.error("Erro ao salvar configurações:", error);
         toast({
           title: "Erro",
           description: "Não foi possível salvar as configurações.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return false;
       }
@@ -137,34 +136,37 @@ export const useConfiguracoes = () => {
       // Atualizar estado local
       setConfiguracoes(prev => ({
         ...prev,
-        ...novasConfiguracoes
+        ...novasConfiguracoes,
       }));
 
       toast({
         title: "Sucesso",
-        description: "Configurações salvas com sucesso."
+        description: "Configurações salvas com sucesso.",
       });
 
       return true;
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
+      console.error("Erro ao salvar configurações:", error);
       toast({
         title: "Erro",
         description: "Não foi possível salvar as configurações.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return false;
     }
   };
 
   // Obter valor de configuração específica
-  const obterConfiguracao = (chave: string, valorPadrao?: any) => {
-    return configuracoes[chave] ?? valorPadrao;
+  const obterConfiguracao = <T>(chave: string, valorPadrao?: T): T => {
+    if (!(chave in configuracoes)) {
+      return valorPadrao as T;
+    }
+    return configuracoes[chave] as T;
   };
 
   useEffect(() => {
     carregarConfiguracoes();
-  }, []);
+  }, [carregarConfiguracoes]);
 
   return {
     configuracoes,
@@ -172,6 +174,6 @@ export const useConfiguracoes = () => {
     carregarConfiguracoes,
     salvarConfiguracao,
     salvarConfiguracoes,
-    obterConfiguracao
+    obterConfiguracao,
   };
 };

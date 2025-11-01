@@ -1,20 +1,19 @@
-
-import React, { useState } from 'react';
-import Layout from '@/components/Layout';
-import NovaVistoriaSupabase from '@/components/NovaVistoriaSupabase';
-import ListaVistoriasSupabase from '@/components/ListaVistoriasSupabase';
-import Configuracoes from '@/components/Configuracoes';
-import GerenciarCondominios from '@/components/GerenciarCondominios';
-import GerenciarAmbientesGrupos from '@/components/GerenciarAmbientesGrupos';
-import ChatIAPersistente from '@/components/ChatIAPersistente';
-import GerenciarUsuarios from '@/components/GerenciarUsuarios';
-import GerenciarTemplates from '@/components/GerenciarTemplates';
-import TesteDescricaoIAAvancada from '@/components/TesteDescricaoIAAvancada';
-import GerenciarBaseConhecimento from '@/components/GerenciarBaseConhecimento';
-import { useCondominiosSupabase } from '@/hooks/useCondominiosSupabase';
+import React, { useState } from "react";
+import Layout from "@/components/Layout";
+import NovaVistoriaSupabase from "@/components/NovaVistoriaSupabase";
+import ListaVistoriasSupabase from "@/components/ListaVistoriasSupabase";
+import Configuracoes from "@/components/Configuracoes";
+import GerenciarCondominios from "@/components/GerenciarCondominios";
+import GerenciarAmbientesGrupos from "@/components/GerenciarAmbientesGrupos";
+import ChatIAPersistente from "@/components/ChatIAPersistente";
+import GerenciarUsuarios from "@/components/GerenciarUsuarios";
+import GerenciarTemplates from "@/components/GerenciarTemplates";
+import TesteDescricaoIAAvancada from "@/components/TesteDescricaoIAAvancada";
+import GerenciarBaseConhecimento from "@/components/GerenciarBaseConhecimento";
+import { useCondominiosSupabase } from "@/hooks/useCondominiosSupabase";
 
 const Index = () => {
-  const [currentPage, setCurrentPage] = useState('vistorias');
+  const [currentPage, setCurrentPage] = useState("vistorias");
   const { condominios } = useCondominiosSupabase();
 
   const handleNavigate = (page: string) => {
@@ -22,53 +21,46 @@ const Index = () => {
   };
 
   const handleNovaVistoria = () => {
-    setCurrentPage('nova-vistoria');
+    setCurrentPage("nova-vistoria");
   };
 
   const handleBackFromNova = () => {
-    setCurrentPage('vistorias');
+    setCurrentPage("vistorias");
   };
 
   const renderContent = () => {
     switch (currentPage) {
-      case 'nova-vistoria':
-        return (
-          <NovaVistoriaSupabase 
-            onBack={handleBackFromNova}
-          />
-        );
-      case 'templates':
+      case "nova-vistoria":
+        return <NovaVistoriaSupabase onBack={handleBackFromNova} />;
+      case "templates":
         return <GerenciarTemplates />;
-      case 'usuarios':
+      case "usuarios":
         return <GerenciarUsuarios />;
-      case 'condominios':
+      case "condominios":
         return <GerenciarCondominios />;
-      case 'ambientes-grupos':
+      case "ambientes-grupos": {
         // Converter CondominioSupabase[] para o formato esperado
         const condominiosFormatted = condominios.map(cond => ({
           id: cond.id,
           nome: cond.nome,
           endereco: cond.endereco,
-          responsavel: '',
-          telefone: cond.telefone || '',
+          responsavel: "",
+          telefone: cond.telefone || "",
           dataCadastro: cond.created_at,
-          proximoNumero: 1
+          proximoNumero: 1,
         }));
-        
-        return (
-          <GerenciarAmbientesGrupos 
-            condominios={condominiosFormatted}
-          />
-        );
-      case 'base-conhecimento':
+
+        return <GerenciarAmbientesGrupos condominios={condominiosFormatted} />;
+      }
+      case "base-conhecimento":
         return <GerenciarBaseConhecimento />;
-      case 'chat-ia':
+      case "chat-ia":
         return <ChatIAPersistente />;
-      case 'configuracoes':
+      case "configuracoes":
         return <Configuracoes />;
-      case 'teste-ia-avancada':
+      case "teste-ia-avancada":
         return <TesteDescricaoIAAvancada />;
-      case 'vistorias':
+      case "vistorias":
       default:
         return <ListaVistoriasSupabase onNovaVistoria={handleNovaVistoria} />;
     }

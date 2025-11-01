@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, X } from 'lucide-react';
-import { useChecklistVistoria } from '@/hooks/useChecklistVistoria';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, X } from "lucide-react";
+import { useChecklistVistoria } from "@/hooks/useChecklistVistoria";
 
 interface ItemChecklist {
   id: string;
@@ -25,13 +31,13 @@ interface ChecklistVistoriaProps {
 
 export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
   onChecklistChange,
-  itensIniciais = []
+  itensIniciais = [],
 }) => {
   const {
     sistemasDisponiveis,
     obterElementosPorSistema,
     obterManifestacoesPorElemento,
-    obterTiposPorElemento
+    obterTiposPorElemento,
   } = useChecklistVistoria();
 
   const [itensChecklist, setItensChecklist] = useState<ItemChecklist[]>(itensIniciais);
@@ -39,13 +45,13 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
   const adicionarItem = () => {
     const novoItem: ItemChecklist = {
       id: Date.now().toString(),
-      sistemaId: '',
-      elementoId: '',
-      tipo: '',
+      sistemaId: "",
+      elementoId: "",
+      tipo: "",
       manifestacoesIds: [],
-      observacoes: ''
+      observacoes: "",
     };
-    
+
     const novosItens = [...itensChecklist, novoItem];
     setItensChecklist(novosItens);
     onChecklistChange?.(novosItens);
@@ -57,26 +63,30 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
     onChecklistChange?.(novosItens);
   };
 
-  const atualizarItem = (itemId: string, campo: keyof ItemChecklist, valor: any) => {
+  const atualizarItem = <K extends keyof ItemChecklist>(
+    itemId: string,
+    campo: K,
+    valor: ItemChecklist[K],
+  ) => {
     const novosItens = itensChecklist.map(item => {
       if (item.id === itemId) {
-        const itemAtualizado = { ...item, [campo]: valor };
-        
+        const itemAtualizado: ItemChecklist = { ...item, [campo]: valor } as ItemChecklist;
+
         // Limpar campos dependentes quando sistema ou elemento mudam
-        if (campo === 'sistemaId') {
-          itemAtualizado.elementoId = '';
-          itemAtualizado.tipo = '';
+        if (campo === "sistemaId") {
+          itemAtualizado.elementoId = "";
+          itemAtualizado.tipo = "";
           itemAtualizado.manifestacoesIds = [];
-        } else if (campo === 'elementoId') {
-          itemAtualizado.tipo = '';
+        } else if (campo === "elementoId") {
+          itemAtualizado.tipo = "";
           itemAtualizado.manifestacoesIds = [];
         }
-        
+
         return itemAtualizado;
       }
       return item;
     });
-    
+
     setItensChecklist(novosItens);
     onChecklistChange?.(novosItens);
   };
@@ -89,16 +99,16 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
       ? item.manifestacoesIds.filter(id => id !== manifestacaoId)
       : [...item.manifestacoesIds, manifestacaoId];
 
-    atualizarItem(itemId, 'manifestacoesIds', novasManifestacoes);
+    atualizarItem(itemId, "manifestacoesIds", novasManifestacoes);
   };
 
   const obterNomeSistema = (sistemaId: string) => {
-    return sistemasDisponiveis.find(s => s.id === sistemaId)?.nome || '';
+    return sistemasDisponiveis.find(s => s.id === sistemaId)?.nome || "";
   };
 
   const obterNomeElemento = (sistemaId: string, elementoId: string) => {
     const elementos = obterElementosPorSistema(sistemaId);
-    return elementos.find(e => e.id === elementoId)?.nome || '';
+    return elementos.find(e => e.id === elementoId)?.nome || "";
   };
 
   return (
@@ -111,11 +121,11 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
         </Button>
       </div>
 
-      {itensChecklist.map((item) => {
+      {itensChecklist.map(item => {
         const elementos = obterElementosPorSistema(item.sistemaId);
         const tipos = obterTiposPorElemento(item.sistemaId, item.elementoId);
         const manifestacoes = obterManifestacoesPorElemento(item.sistemaId, item.elementoId);
-        
+
         return (
           <Card key={item.id} className="border-l-4 border-l-primary">
             <CardHeader className="pb-4">
@@ -131,20 +141,20 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
                 </Button>
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {/* Seleção do Sistema */}
               <div className="space-y-2">
                 <Label>Sistema</Label>
                 <Select
                   value={item.sistemaId}
-                  onValueChange={(value) => atualizarItem(item.id, 'sistemaId', value)}
+                  onValueChange={value => atualizarItem(item.id, "sistemaId", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o sistema" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sistemasDisponiveis.map((sistema) => (
+                    {sistemasDisponiveis.map(sistema => (
                       <SelectItem key={sistema.id} value={sistema.id}>
                         {sistema.nome}
                       </SelectItem>
@@ -159,13 +169,13 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
                   <Label>Elemento</Label>
                   <Select
                     value={item.elementoId}
-                    onValueChange={(value) => atualizarItem(item.id, 'elementoId', value)}
+                    onValueChange={value => atualizarItem(item.id, "elementoId", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o elemento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {elementos.map((elemento) => (
+                      {elementos.map(elemento => (
                         <SelectItem key={elemento.id} value={elemento.id}>
                           {elemento.nome}
                         </SelectItem>
@@ -181,13 +191,13 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
                   <Label>Tipo de Material</Label>
                   <Select
                     value={item.tipo}
-                    onValueChange={(value) => atualizarItem(item.id, 'tipo', value)}
+                    onValueChange={value => atualizarItem(item.id, "tipo", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo de material" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tipos.map((tipo) => (
+                      {tipos.map(tipo => (
                         <SelectItem key={tipo} value={tipo}>
                           {tipo}
                         </SelectItem>
@@ -202,7 +212,7 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
                 <div className="space-y-3">
                   <Label>Manifestações Patológicas Identificadas</Label>
                   <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto border rounded-md p-3">
-                    {manifestacoes.map((manifestacao) => (
+                    {manifestacoes.map(manifestacao => (
                       <div key={manifestacao.id} className="flex items-start space-x-3">
                         <Checkbox
                           id={`${item.id}-${manifestacao.id}`}
@@ -231,7 +241,7 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
                 <Label>Observações Técnicas</Label>
                 <Textarea
                   value={item.observacoes}
-                  onChange={(e) => atualizarItem(item.id, 'observacoes', e.target.value)}
+                  onChange={e => atualizarItem(item.id, "observacoes", e.target.value)}
                   placeholder="Descreva detalhes específicos, recomendações ou observações adicionais..."
                   rows={3}
                 />
@@ -241,9 +251,18 @@ export const ChecklistVistoria: React.FC<ChecklistVistoriaProps> = ({
               {item.sistemaId && item.elementoId && (
                 <div className="bg-muted p-3 rounded-md">
                   <div className="text-sm space-y-1">
-                    <div><strong>Sistema:</strong> {obterNomeSistema(item.sistemaId)}</div>
-                    <div><strong>Elemento:</strong> {obterNomeElemento(item.sistemaId, item.elementoId)}</div>
-                    {item.tipo && <div><strong>Tipo:</strong> {item.tipo}</div>}
+                    <div>
+                      <strong>Sistema:</strong> {obterNomeSistema(item.sistemaId)}
+                    </div>
+                    <div>
+                      <strong>Elemento:</strong>{" "}
+                      {obterNomeElemento(item.sistemaId, item.elementoId)}
+                    </div>
+                    {item.tipo && (
+                      <div>
+                        <strong>Tipo:</strong> {item.tipo}
+                      </div>
+                    )}
                     {item.manifestacoesIds.length > 0 && (
                       <div className="mt-2">
                         <strong>Manifestações:</strong>

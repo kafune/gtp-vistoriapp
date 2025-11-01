@@ -1,7 +1,6 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface Usuario {
   id: string;
@@ -10,7 +9,7 @@ export interface Usuario {
   telefone: string;
   cargo: string;
   ativo: boolean;
-  role: 'admin' | 'sindico';
+  role: "admin" | "sindico";
   email_copia_1?: string;
   email_copia_2?: string;
   email_copia_3?: string;
@@ -22,14 +21,14 @@ export const useUsuarios = () => {
   const { toast } = useToast();
 
   // Carregar usuários do Supabase
-  const carregarUsuarios = async () => {
+  const carregarUsuarios = useCallback(async () => {
     try {
       // Carregar todos os usuários (RLS permite para admins)
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('ativo', true)
-        .order('nome');
+        .from("profiles")
+        .select("*")
+        .eq("ativo", true)
+        .order("nome");
 
       if (error) {
         throw error;
@@ -39,18 +38,18 @@ export const useUsuarios = () => {
         id: profile.id,
         nome: profile.nome,
         email: profile.email,
-        telefone: profile.telefone || '',
-        cargo: profile.cargo || 'Vistoriador',
+        telefone: profile.telefone || "",
+        cargo: profile.cargo || "Vistoriador",
         ativo: profile.ativo,
-        role: profile.role || 'sindico',
-        email_copia_1: profile.email_copia_1 || '',
-        email_copia_2: profile.email_copia_2 || '',
-        email_copia_3: profile.email_copia_3 || ''
+        role: profile.role || "sindico",
+        email_copia_1: profile.email_copia_1 || "",
+        email_copia_2: profile.email_copia_2 || "",
+        email_copia_3: profile.email_copia_3 || "",
       }));
 
       setUsuarios(usuariosFormatados);
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error);
+      console.error("Erro ao carregar usuários:", error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os usuários.",
@@ -59,19 +58,26 @@ export const useUsuarios = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     carregarUsuarios();
-  }, []);
+  }, [carregarUsuarios]);
 
   const adicionarUsuario = async (
-    dadosUsuario: Omit<Usuario, 'id'>,
+    dadosUsuario: Omit<Usuario, "id">,
     condominioId?: string,
-    password?: string
-  ): Promise<{ userId?: string; tempPassword?: string; error?: any }> => {
+    password?: string,
+  ): Promise<{ userId?: string; tempPassword?: string; error?: Error }> => {
     try {
-      const { data, error } = await supabase.functions.invoke('criar-usuario', {
+      const { data, error } = await supabase.functions.invoke<{
+        success: boolean;
+        userId?: string;
+        tempPassword?: string;
+        warning?: string;
+        warningDetails?: string;
+        error?: string;
+      }>("criar-usuario", {
         body: {
           dadosUsuario: {
             ...dadosUsuario,
@@ -84,33 +90,46 @@ export const useUsuarios = () => {
 
       if (error) throw error;
 
+      if (!data?.success) {
+        throw new Error(data?.error || "Falha ao criar usuário");
+      }
+
       await carregarUsuarios();
 
-      const tempPassword = (data as any)?.tempPassword as string | undefined;
+      const tempPassword = data?.tempPassword;
 
       toast({
-        title: 'Sucesso',
+        title: "Sucesso",
         description: tempPassword
           ? `Usuário criado. Senha temporária: ${tempPassword}`
-          : 'Usuário criado com sucesso.',
+          : "Usuário criado com sucesso.",
       });
 
-      return { userId: (data as any)?.userId, tempPassword };
+      if (data?.warning) {
+        toast({
+          title: "Aviso",
+          description: data.warning,
+        });
+      }
+
+      return { userId: data?.userId, tempPassword };
     } catch (error) {
-      console.error('Erro ao adicionar usuário:', error);
+      console.error("Erro ao adicionar usuário:", error);
       toast({
-        title: 'Erro',
-        description: 'Não foi possível adicionar o usuário.',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Não foi possível adicionar o usuário.",
+        variant: "destructive",
       });
-      return { error };
+      return {
+        error: error instanceof Error ? error : new Error("Erro desconhecido ao adicionar usuário"),
+      };
     }
   };
 
   const atualizarUsuario = async (id: string, dadosAtualizados: Partial<Usuario>) => {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({
           nome: dadosAtualizados.nome,
           telefone: dadosAtualizados.telefone,
@@ -119,22 +138,22 @@ export const useUsuarios = () => {
           role: dadosAtualizados.role,
           email_copia_1: dadosAtualizados.email_copia_1,
           email_copia_2: dadosAtualizados.email_copia_2,
-          email_copia_3: dadosAtualizados.email_copia_3
+          email_copia_3: dadosAtualizados.email_copia_3,
         })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) {
         throw error;
       }
 
       await carregarUsuarios();
-      
+
       toast({
         title: "Sucesso",
         description: "Usuário atualizado com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
+      console.error("Erro ao atualizar usuário:", error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o usuário.",
@@ -147,23 +166,20 @@ export const useUsuarios = () => {
     try {
       // Em vez de deletar o perfil (que pode quebrar referências),
       // vamos apenas desativar o usuário
-      const { error } = await supabase
-        .from('profiles')
-        .update({ ativo: false })
-        .eq('id', id);
+      const { error } = await supabase.from("profiles").update({ ativo: false }).eq("id", id);
 
       if (error) {
         throw error;
       }
 
       await carregarUsuarios();
-      
+
       toast({
         title: "Sucesso",
         description: "Usuário desativado com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao remover usuário:', error);
+      console.error("Erro ao remover usuário:", error);
       toast({
         title: "Erro",
         description: "Não foi possível remover o usuário.",
@@ -179,12 +195,10 @@ export const useUsuarios = () => {
   // Associar usuário a condomínio
   const associarCondominio = async (userId: string, condominioId: string) => {
     try {
-      const { error } = await supabase
-        .from('usuario_condominios')
-        .insert({
-          user_id: userId,
-          condominio_id: condominioId
-        });
+      const { error } = await supabase.from("usuario_condominios").insert({
+        user_id: userId,
+        condominio_id: condominioId,
+      });
 
       if (error) {
         throw error;
@@ -195,7 +209,7 @@ export const useUsuarios = () => {
         description: "Usuário associado ao condomínio com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao associar usuário:', error);
+      console.error("Erro ao associar usuário:", error);
       toast({
         title: "Erro",
         description: "Não foi possível associar o usuário ao condomínio.",
@@ -208,10 +222,10 @@ export const useUsuarios = () => {
   const removerAssociacao = async (userId: string, condominioId: string) => {
     try {
       const { error } = await supabase
-        .from('usuario_condominios')
+        .from("usuario_condominios")
         .delete()
-        .eq('user_id', userId)
-        .eq('condominio_id', condominioId);
+        .eq("user_id", userId)
+        .eq("condominio_id", condominioId);
 
       if (error) {
         throw error;
@@ -222,7 +236,7 @@ export const useUsuarios = () => {
         description: "Associação removida com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao remover associação:', error);
+      console.error("Erro ao remover associação:", error);
       toast({
         title: "Erro",
         description: "Não foi possível remover a associação.",
@@ -235,15 +249,17 @@ export const useUsuarios = () => {
   const obterCondominiosUsuario = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('usuario_condominios')
-        .select(`
+        .from("usuario_condominios")
+        .select(
+          `
           condominio_id,
           condominios (
             id,
             nome
           )
-        `)
-        .eq('user_id', userId);
+        `,
+        )
+        .eq("user_id", userId);
 
       if (error) {
         throw error;
@@ -251,7 +267,7 @@ export const useUsuarios = () => {
 
       return data?.map(item => item.condominios).filter(Boolean) || [];
     } catch (error) {
-      console.error('Erro ao obter condomínios do usuário:', error);
+      console.error("Erro ao obter condomínios do usuário:", error);
       return [];
     }
   };
@@ -266,6 +282,6 @@ export const useUsuarios = () => {
     associarCondominio,
     removerAssociacao,
     obterCondominiosUsuario,
-    recarregar: carregarUsuarios
+    recarregar: carregarUsuarios,
   };
 };

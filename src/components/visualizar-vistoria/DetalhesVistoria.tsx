@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Download, Calendar, Building, User, FileText, Edit } from 'lucide-react';
-import { VistoriaSupabase } from '@/hooks/useVistoriasSupabase';
-import { supabase } from '@/integrations/supabase/client';
-import FotosVistoria from './FotosVistoria';
-import PreviewPDFSupabase from './PreviewPDFSupabase';
+import React, { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Download, Calendar, Building, User, FileText, Edit } from "lucide-react";
+import { VistoriaSupabase } from "@/hooks/useVistoriasSupabase";
+import { supabase } from "@/integrations/supabase/client";
+import FotosVistoria from "./FotosVistoria";
+import PreviewPDFSupabase from "./PreviewPDFSupabase";
 
 interface DetalhesVistoriaProps {
   vistoria: VistoriaSupabase;
@@ -21,25 +21,27 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
   const [reloadKey, setReloadKey] = useState(0);
 
   // Função para recarregar dados da vistoria
-  const recarregarVistoria = async () => {
+  const recarregarVistoria = useCallback(async () => {
     try {
-      console.log('Recarregando dados da vistoria:', vistoria.id);
-      
+      console.log("Recarregando dados da vistoria:", vistoria.id);
+
       const { data: vistoriaData, error } = await supabase
-        .from('vistorias')
-        .select(`
+        .from("vistorias")
+        .select(
+          `
           *,
           condominio:condominios(id, nome),
           grupos_vistoria(
             *,
             fotos_vistoria(*)
           )
-        `)
-        .eq('id', vistoria.id!)
+        `,
+        )
+        .eq("id", vistoria.id!)
         .single();
 
       if (error) {
-        console.error('Erro ao recarregar vistoria:', error);
+        console.error("Erro ao recarregar vistoria:", error);
         return;
       }
 
@@ -51,9 +53,9 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
         grupo: grupo.grupo,
         item: grupo.item,
         status: grupo.status,
-        parecer: grupo.parecer || '',
+        parecer: grupo.parecer || "",
         ordem: grupo.ordem || 0,
-        fotos: grupo.fotos_vistoria || []
+        fotos: grupo.fotos_vistoria || [],
       }));
 
       const vistoriaAtualizada: VistoriaSupabase = {
@@ -68,17 +70,19 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
         status: vistoriaData.status,
         created_at: vistoriaData.created_at,
         updated_at: vistoriaData.updated_at,
-        condominio: Array.isArray(vistoriaData.condominio) ? vistoriaData.condominio[0] : vistoriaData.condominio,
-        grupos: grupos
+        condominio: Array.isArray(vistoriaData.condominio)
+          ? vistoriaData.condominio[0]
+          : vistoriaData.condominio,
+        grupos: grupos,
       };
 
       setVistoria(vistoriaAtualizada);
       setReloadKey(prev => prev + 1); // Força rerender dos componentes filhos
-      console.log('Vistoria recarregada com sucesso:', vistoriaAtualizada);
+      console.log("Vistoria recarregada com sucesso:", vistoriaAtualizada);
     } catch (error) {
-      console.error('Erro ao recarregar vistoria:', error);
+      console.error("Erro ao recarregar vistoria:", error);
     }
-  };
+  }, [vistoria.id]);
 
   // Recarregar quando a vistoria inicial mudar
   useEffect(() => {
@@ -92,38 +96,38 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
       recarregarVistoria();
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
     };
-  }, [vistoria.id]);
+  }, [vistoria.id, recarregarVistoria]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString("pt-BR");
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Conforme':
-        return 'bg-green-100 text-green-800';
-      case 'Não Conforme':
-        return 'bg-red-100 text-red-800';
-      case 'Requer Atenção':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Em Andamento':
-        return 'bg-blue-100 text-blue-800';
+      case "Conforme":
+        return "bg-green-100 text-green-800";
+      case "Não Conforme":
+        return "bg-red-100 text-red-800";
+      case "Requer Atenção":
+        return "bg-yellow-100 text-yellow-800";
+      case "Em Andamento":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   if (showPDFPreview) {
     return (
-      <PreviewPDFSupabase 
+      <PreviewPDFSupabase
         key={`pdf-${reloadKey}`}
-        vistoria={vistoria} 
+        vistoria={vistoria}
         onBack={() => setShowPDFPreview(false)}
       />
     );
@@ -139,23 +143,18 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
             Voltar
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {vistoria.condominio?.nome}
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">{vistoria.condominio?.nome}</h1>
             <p className="text-gray-600">Vistoria #{vistoria.numero_interno}</p>
           </div>
         </div>
         <div className="flex space-x-2">
           {onEdit && vistoria.id && (
-            <Button 
-              variant="outline"
-              onClick={() => onEdit(vistoria.id!)}
-            >
+            <Button variant="outline" onClick={() => onEdit(vistoria.id!)}>
               <Edit size={16} className="mr-2" />
               Editar
             </Button>
           )}
-          <Button 
+          <Button
             variant="outline"
             onClick={() => {
               recarregarVistoria().then(() => {
@@ -186,7 +185,7 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
                 <p className="text-gray-900">{formatDate(vistoria.data_vistoria)}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <User className="text-teal-600" size={20} />
               <div>
@@ -194,7 +193,7 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
                 <p className="text-gray-900">{vistoria.responsavel}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <Building className="text-teal-600" size={20} />
               <div>
@@ -202,23 +201,19 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
                 <p className="text-gray-900">{vistoria.id_sequencial}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <div>
                 <p className="text-sm font-medium text-gray-600">Status</p>
-                <Badge className={getStatusColor(vistoria.status)}>
-                  {vistoria.status}
-                </Badge>
+                <Badge className={getStatusColor(vistoria.status)}>{vistoria.status}</Badge>
               </div>
             </div>
           </div>
-          
+
           {vistoria.observacoes_gerais && (
             <div className="mt-6">
               <h4 className="font-medium text-gray-900 mb-2">Observações Gerais</h4>
-              <p className="text-gray-700 bg-gray-50 p-3 rounded">
-                {vistoria.observacoes_gerais}
-              </p>
+              <p className="text-gray-700 bg-gray-50 p-3 rounded">{vistoria.observacoes_gerais}</p>
             </div>
           )}
         </CardContent>
@@ -229,15 +224,15 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
         <h2 className="text-xl font-bold text-gray-900">
           Grupos de Vistoria ({vistoria.grupos.length})
         </h2>
-        
+
         {vistoria.grupos.map((grupo, index) => (
           <Card key={`${grupo.id}-${reloadKey}-${index}`}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Grupo {index + 1}: {grupo.ambiente} - {grupo.grupo}</span>
-                <Badge className={getStatusColor(grupo.status)}>
-                  {grupo.status}
-                </Badge>
+                <span>
+                  Grupo {index + 1}: {grupo.ambiente} - {grupo.grupo}
+                </span>
+                <Badge className={getStatusColor(grupo.status)}>{grupo.status}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -247,22 +242,21 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
                   <p className="text-gray-900">{grupo.item}</p>
                 </div>
               </div>
-              
+
               {grupo.parecer && (
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">Parecer Técnico</p>
-                  <p className="text-gray-700 bg-gray-50 p-3 rounded">
-                    {grupo.parecer}
-                  </p>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded">{grupo.parecer}</p>
                 </div>
               )}
-              
+
               <Separator />
-              
-              <FotosVistoria 
+
+              <FotosVistoria
                 key={`fotos-${grupo.id}-${reloadKey}`}
-                fotos={grupo.fotos || []} 
+                fotos={grupo.fotos || []}
                 grupoNome={`${grupo.ambiente} - ${grupo.grupo}`}
+                grupoIndex={index}
               />
             </CardContent>
           </Card>

@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Upload, Save, Eye, Plus, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import UploadFotos from './UploadFotos';
-import { Condominio } from '@/hooks/useCondominios';
-import { useUsuarios } from '@/hooks/useUsuarios';
-import { useAmbientesGrupos } from '@/hooks/useAmbientesGrupos';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar, Upload, Save, Eye, Plus, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import UploadFotos from "./UploadFotos";
+import ParecerAssistenteIA from "./ParecerAssistenteIA";
+import { Condominio } from "@/hooks/useCondominios";
+import { useUsuarios } from "@/hooks/useUsuarios";
+import { useAmbientesGrupos } from "@/hooks/useAmbientesGrupos";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface FotoComDescricao extends File {
   descricao?: string;
@@ -46,29 +53,37 @@ interface NovaVistoriaProps {
   initialData?: VistoriaData | null;
 }
 
-const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarNumero, initialData }: NovaVistoriaProps) => {
+const NovaVistoria = ({
+  onPreview,
+  condominios,
+  obterProximoNumero,
+  incrementarNumero,
+  initialData,
+}: NovaVistoriaProps) => {
   const { toast } = useToast();
   const { obterUsuariosAtivos } = useUsuarios();
   const { obterAmbientesPorCondominio, obterGruposPorCondominio } = useAmbientesGrupos();
   const usuariosAtivos = obterUsuariosAtivos();
-  
+
   const [formData, setFormData] = useState<VistoriaData>({
-    condominio: '',
-    condominioId: '',
-    numeroInterno: '',
+    condominio: "",
+    condominioId: "",
+    numeroInterno: "",
     idSequencial: 0,
-    dataVistoria: new Date().toISOString().split('T')[0],
-    observacoes: '',
-    responsavel: '',
-    grupos: [{
-      id: '1',
-      ambiente: '',
-      grupo: '',
-      item: '',
-      status: '',
-      parecer: '',
-      fotos: []
-    }]
+    dataVistoria: new Date().toISOString().split("T")[0],
+    observacoes: "",
+    responsavel: "",
+    grupos: [
+      {
+        id: "1",
+        ambiente: "",
+        grupo: "",
+        item: "",
+        status: "",
+        parecer: "",
+        fotos: [],
+      },
+    ],
   });
 
   // Carrega os dados iniciais quando há dados para edição
@@ -82,11 +97,11 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
   const ambientesDisponiveis = obterAmbientesPorCondominio(formData.condominioId);
   const gruposDisponiveis = obterGruposPorCondominio(formData.condominioId);
 
-  const statusOptions = ['N/A', 'Conforme', 'Não Conforme', 'Requer Atenção'];
+  const statusOptions = ["N/A", "Conforme", "Não Conforme", "Requer Atenção"];
 
   const handleInputChange = (field: keyof VistoriaData, value: string) => {
     // Validar limite de observações gerais
-    if (field === 'observacoes' && value.length > 150) {
+    if (field === "observacoes" && value.length > 150) {
       toast({
         title: "Limite de Caracteres Excedido",
         description: "As observações gerais devem ter no máximo 150 caracteres.",
@@ -106,14 +121,14 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
         condominioId,
         condominio: condominio.nome,
         idSequencial: proximoNumero,
-        numeroInterno: `${new Date().getFullYear()}-${proximoNumero.toString().padStart(4, '0')}`
+        numeroInterno: `${new Date().getFullYear()}-${proximoNumero.toString().padStart(4, "0")}`,
       }));
     }
   };
 
   const handleGrupoChange = (grupoId: string, field: keyof GrupoVistoria, value: string) => {
     // Validar limite do parecer técnico
-    if (field === 'parecer' && value.length > 200) {
+    if (field === "parecer" && value.length > 200) {
       toast({
         title: "Limite de Caracteres Excedido",
         description: "O parecer técnico deve ter no máximo 200 caracteres.",
@@ -121,16 +136,20 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
       });
       return;
     }
-    
+
     setFormData(prev => ({
       ...prev,
-      grupos: prev.grupos.map(grupo => 
-        grupo.id === grupoId ? { ...grupo, [field]: value } : grupo
-      )
+      grupos: prev.grupos.map(grupo =>
+        grupo.id === grupoId ? { ...grupo, [field]: value } : grupo,
+      ),
     }));
   };
 
-  const handleFotosChange = (grupoId: string, fotos: File[], fotosComDescricao?: Array<{file: File, descricao: string}>) => {
+  const handleFotosChange = (
+    grupoId: string,
+    fotos: File[],
+    fotosComDescricao?: Array<{ file: File; descricao: string }>,
+  ) => {
     if (fotosComDescricao) {
       const fotosComDescricaoExtendidas: FotoComDescricao[] = fotosComDescricao.map(item => {
         const fotoExtendida = item.file as FotoComDescricao;
@@ -139,16 +158,14 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
       });
       setFormData(prev => ({
         ...prev,
-        grupos: prev.grupos.map(grupo => 
-          grupo.id === grupoId ? { ...grupo, fotos: fotosComDescricaoExtendidas } : grupo
-        )
+        grupos: prev.grupos.map(grupo =>
+          grupo.id === grupoId ? { ...grupo, fotos: fotosComDescricaoExtendidas } : grupo,
+        ),
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        grupos: prev.grupos.map(grupo => 
-          grupo.id === grupoId ? { ...grupo, fotos } : grupo
-        )
+        grupos: prev.grupos.map(grupo => (grupo.id === grupoId ? { ...grupo, fotos } : grupo)),
       }));
     }
   };
@@ -157,16 +174,16 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
     const novoId = (formData.grupos.length + 1).toString();
     const novoGrupo: GrupoVistoria = {
       id: novoId,
-      ambiente: '',
-      grupo: '',
-      item: '',
-      status: '',
-      parecer: '',
-      fotos: []
+      ambiente: "",
+      grupo: "",
+      item: "",
+      status: "",
+      parecer: "",
+      fotos: [],
     };
     setFormData(prev => ({
       ...prev,
-      grupos: [...prev.grupos, novoGrupo]
+      grupos: [...prev.grupos, novoGrupo],
     }));
   };
 
@@ -174,7 +191,7 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
     if (formData.grupos.length > 1) {
       setFormData(prev => ({
         ...prev,
-        grupos: prev.grupos.filter(grupo => grupo.id !== grupoId)
+        grupos: prev.grupos.filter(grupo => grupo.id !== grupoId),
       }));
     }
   };
@@ -190,8 +207,8 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
     }
 
     incrementarNumero(formData.condominioId);
-    
-    console.log('Salvando vistoria:', formData);
+
+    console.log("Salvando vistoria:", formData);
     toast({
       title: "Vistoria Salva",
       description: `Vistoria #${formData.numeroInterno} salva com sucesso.`,
@@ -214,7 +231,7 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">
-          {initialData ? 'Editar Vistoria' : 'Nova Vistoria'}
+          {initialData ? "Editar Vistoria" : "Nova Vistoria"}
         </h2>
         <div className="flex space-x-2">
           <Button onClick={handleSave} variant="outline">
@@ -252,7 +269,7 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
                     <SelectValue placeholder="Selecione o condomínio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {condominios.map((condominio) => (
+                    {condominios.map(condominio => (
                       <SelectItem key={condominio.id} value={condominio.id}>
                         {condominio.nome}
                       </SelectItem>
@@ -271,12 +288,15 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
                   </p>
                 </div>
               ) : (
-                <Select value={formData.responsavel} onValueChange={(value) => handleInputChange('responsavel', value)}>
+                <Select
+                  value={formData.responsavel}
+                  onValueChange={value => handleInputChange("responsavel", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o responsável" />
                   </SelectTrigger>
                   <SelectContent>
-                    {usuariosAtivos.map((usuario) => (
+                    {usuariosAtivos.map(usuario => (
                       <SelectItem key={usuario.id} value={usuario.nome}>
                         {usuario.nome} {usuario.cargo && `- ${usuario.cargo}`}
                       </SelectItem>
@@ -302,7 +322,7 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
               <Label htmlFor="idSequencial">ID Sequencial</Label>
               <Input
                 id="idSequencial"
-                value={formData.idSequencial || ''}
+                value={formData.idSequencial || ""}
                 readOnly
                 className="bg-gray-50"
                 placeholder="Auto"
@@ -314,7 +334,7 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
                 id="dataVistoria"
                 type="date"
                 value={formData.dataVistoria}
-                onChange={(e) => handleInputChange('dataVistoria', e.target.value)}
+                onChange={e => handleInputChange("dataVistoria", e.target.value)}
               />
             </div>
           </div>
@@ -322,134 +342,161 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
       </Card>
 
       {/* Grupos de Vistoria */}
-      {formData.grupos.map((grupo, index) => (
-        <Card key={grupo.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Grupo de Vistoria {index + 1}</CardTitle>
-              <div className="flex space-x-2">
-                {formData.grupos.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removerGrupo(grupo.id)}
-                  >
-                    <Trash2 size={16} className="mr-1" />
-                    Remover
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor={`ambiente-${grupo.id}`}>Ambiente</Label>
-                <Select 
-                  value={grupo.ambiente} 
-                  onValueChange={(value) => handleGrupoChange(grupo.id, 'ambiente', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o ambiente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ambientesDisponiveis.map((ambiente) => (
-                      <SelectItem key={ambiente.id} value={ambiente.nome}>
-                        {ambiente.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor={`grupo-${grupo.id}`}>Grupo</Label>
-                <Select 
-                  value={grupo.grupo} 
-                  onValueChange={(value) => handleGrupoChange(grupo.id, 'grupo', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gruposDisponiveis.map((grupoOpcao) => (
-                      <SelectItem key={grupoOpcao.id} value={grupoOpcao.nome}>
-                        {grupoOpcao.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor={`item-${grupo.id}`}>Item</Label>
-                <Input
-                  id={`item-${grupo.id}`}
-                  value={grupo.item}
-                  onChange={(e) => handleGrupoChange(grupo.id, 'item', e.target.value)}
-                  placeholder="Ex: 15.0 Sistema de automação..."
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`status-${grupo.id}`}>Status</Label>
-                <Select 
-                  value={grupo.status} 
-                  onValueChange={(value) => handleGrupoChange(grupo.id, 'status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor={`parecer-${grupo.id}`}>Parecer Técnico</Label>
-              <div className="space-y-2">
-                <Textarea
-                  id={`parecer-${grupo.id}`}
-                  value={grupo.parecer}
-                  onChange={(e) => handleGrupoChange(grupo.id, 'parecer', e.target.value)}
-                  placeholder="Descreva o parecer técnico detalhado..."
-                  className="min-h-[80px]"
-                />
-                <div className="flex justify-between items-center">
-                  <span className={`text-xs ${grupo.parecer.length > 180 ? 'text-red-500' : 'text-gray-500'}`}>
-                    {grupo.parecer.length}/200 caracteres
-                  </span>
-                  {grupo.parecer.length > 200 && (
-                    <Alert variant="warning" className="mt-2">
-                      <AlertDescription>
-                        O parecer excede o limite de 200 caracteres e será truncado no PDF.
-                      </AlertDescription>
-                    </Alert>
+      {formData.grupos.map((grupo, index) => {
+        const condominioAtual = condominios.find(c => c.id === formData.condominioId);
+        return (
+          <Card key={grupo.id}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Grupo de Vistoria {index + 1}</CardTitle>
+                <div className="flex space-x-2">
+                  {formData.grupos.length > 1 && (
+                    <Button variant="outline" size="sm" onClick={() => removerGrupo(grupo.id)}>
+                      <Trash2 size={16} className="mr-1" />
+                      Remover
+                    </Button>
                   )}
                 </div>
               </div>
-            </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor={`ambiente-${grupo.id}`}>Ambiente</Label>
+                  <Select
+                    value={grupo.ambiente}
+                    onValueChange={value => handleGrupoChange(grupo.id, "ambiente", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o ambiente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ambientesDisponiveis.map(ambiente => (
+                        <SelectItem key={ambiente.id} value={ambiente.nome}>
+                          {ambiente.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Upload de Fotos para este grupo (máximo 2) */}
-            <div>
-              <Label>Fotos da Vistoria (máximo 2)</Label>
-              <UploadFotos 
-                onFotosChange={(fotos, fotosComDescricao) => handleFotosChange(grupo.id, fotos, fotosComDescricao)}
-                maxFotos={2}
-                grupoId={grupo.id}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <div>
+                  <Label htmlFor={`grupo-${grupo.id}`}>Grupo</Label>
+                  <Select
+                    value={grupo.grupo}
+                    onValueChange={value => handleGrupoChange(grupo.id, "grupo", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gruposDisponiveis.map(grupoOpcao => (
+                        <SelectItem key={grupoOpcao.id} value={grupoOpcao.nome}>
+                          {grupoOpcao.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor={`item-${grupo.id}`}>Item</Label>
+                  <Input
+                    id={`item-${grupo.id}`}
+                    value={grupo.item}
+                    onChange={e => handleGrupoChange(grupo.id, "item", e.target.value)}
+                    placeholder="Ex: 15.0 Sistema de automação..."
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor={`status-${grupo.id}`}>Status</Label>
+                  <Select
+                    value={grupo.status}
+                    onValueChange={value => handleGrupoChange(grupo.id, "status", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map(status => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor={`parecer-${grupo.id}`}>Parecer Técnico</Label>
+                <div className="space-y-2">
+                  <Textarea
+                    id={`parecer-${grupo.id}`}
+                    value={grupo.parecer}
+                    onChange={e => handleGrupoChange(grupo.id, "parecer", e.target.value)}
+                    placeholder="Descreva o parecer técnico detalhado..."
+                    className="min-h-[80px]"
+                  />
+                  <ParecerAssistenteIA
+                    textoAtual={grupo.parecer}
+                    onAplicarTexto={texto => handleGrupoChange(grupo.id, "parecer", texto)}
+                    contexto={{
+                      ambiente: grupo.ambiente,
+                      grupo: grupo.grupo,
+                      item: grupo.item,
+                      status: grupo.status,
+                      condominioNome: formData.condominio,
+                      responsavel: formData.responsavel,
+                    }}
+                  />
+                  <div className="flex justify-between items-center">
+                    <span
+                      className={`text-xs ${grupo.parecer.length > 180 ? "text-red-500" : "text-gray-500"}`}
+                    >
+                      {grupo.parecer.length}/200 caracteres
+                    </span>
+                    {grupo.parecer.length > 200 && (
+                      <Alert variant="warning" className="mt-2">
+                        <AlertDescription>
+                          O parecer excede o limite de 200 caracteres e será truncado no PDF.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload de Fotos para este grupo (máximo 2) */}
+              <div>
+                <Label>Fotos da Vistoria (máximo 2)</Label>
+                <UploadFotos
+                  onFotosChange={(fotos, fotosComDescricao) =>
+                    handleFotosChange(grupo.id, fotos, fotosComDescricao)
+                  }
+                  maxFotos={2}
+                  grupoId={grupo.id}
+                  grupoInfo={{
+                    ambiente: grupo.ambiente,
+                    grupo: grupo.grupo,
+                    item: grupo.item,
+                    status: grupo.status,
+                  }}
+                  condominioInfo={
+                    condominioAtual
+                      ? { id: condominioAtual.id, nome: condominioAtual.nome }
+                      : undefined
+                  }
+                  responsavel={formData.responsavel}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* Botão para adicionar novo grupo */}
       <div className="flex justify-center">
@@ -471,12 +518,14 @@ const NovaVistoria = ({ onPreview, condominios, obterProximoNumero, incrementarN
               <Textarea
                 id="observacoes"
                 value={formData.observacoes}
-                onChange={(e) => handleInputChange('observacoes', e.target.value)}
+                onChange={e => handleInputChange("observacoes", e.target.value)}
                 placeholder="Observações adicionais..."
                 className="min-h-[80px]"
               />
               <div className="flex justify-between items-center">
-                <span className={`text-xs ${formData.observacoes.length > 130 ? 'text-red-500' : 'text-gray-500'}`}>
+                <span
+                  className={`text-xs ${formData.observacoes.length > 130 ? "text-red-500" : "text-gray-500"}`}
+                >
                   {formData.observacoes.length}/150 caracteres
                 </span>
                 {formData.observacoes.length > 150 && (

@@ -1,15 +1,14 @@
-
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Save, Eye, Plus, ArrowLeft } from 'lucide-react';
-import { useCondominiosSupabase } from '@/hooks/useCondominiosSupabase';
-import { VistoriaSupabase } from '@/hooks/useVistoriasSupabase';
-import { useUsuarios } from '@/hooks/useUsuarios';
-import { useAmbientesGrupos } from '@/hooks/useAmbientesGrupos';
-import DadosBasicos from './nova-vistoria/DadosBasicos';
-import GrupoVistoria from './nova-vistoria/GrupoVistoria';
-import ObservacoesGerais from './nova-vistoria/ObservacoesGerais';
-import { useEditarVistoriaForm } from './nova-vistoria/useEditarVistoriaForm';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Save, Eye, Plus, ArrowLeft } from "lucide-react";
+import { useCondominiosSupabase } from "@/hooks/useCondominiosSupabase";
+import { VistoriaSupabase } from "@/hooks/useVistoriasSupabase";
+import { useUsuarios } from "@/hooks/useUsuarios";
+import { useAmbientesGrupos } from "@/hooks/useAmbientesGrupos";
+import DadosBasicos from "./nova-vistoria/DadosBasicos";
+import GrupoVistoria from "./nova-vistoria/GrupoVistoria";
+import ObservacoesGerais from "./nova-vistoria/ObservacoesGerais";
+import { useEditarVistoriaForm } from "./nova-vistoria/useEditarVistoriaForm";
 
 interface EditarVistoriaSupabaseProps {
   vistoriaId: string;
@@ -22,7 +21,7 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
   const { obterUsuariosAtivos } = useUsuarios();
   const { obterAmbientesPorCondominio, obterGruposPorCondominio } = useAmbientesGrupos();
   const usuariosAtivos = obterUsuariosAtivos();
-  
+
   const {
     formData,
     saving,
@@ -36,13 +35,17 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
     handleFotosExistentesChange,
     handleSave,
     handlePreview,
-    carregarVistoria
+    carregarVistoria,
   } = useEditarVistoriaForm(vistoriaId, onBack);
 
   // Obter ambientes e grupos baseados no condomínio selecionado
-  const ambientesDisponiveis = obterAmbientesPorCondominio(formData.condominio_id).map(ambiente => ambiente.nome);
-  const gruposDisponiveis = obterGruposPorCondominio(formData.condominio_id).map(grupo => grupo.nome);
-  const statusOptions = ['N/A', 'Conforme', 'Não Conforme', 'Requer Atenção'];
+  const ambientesDisponiveis = obterAmbientesPorCondominio(formData.condominio_id).map(
+    ambiente => ambiente.nome,
+  );
+  const gruposDisponiveis = obterGruposPorCondominio(formData.condominio_id).map(
+    grupo => grupo.nome,
+  );
+  const statusOptions = ["N/A", "Conforme", "Não Conforme", "Requer Atenção"];
 
   const handlePreviewClick = () => {
     if (handlePreview() && onPreview) {
@@ -75,13 +78,9 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
           </div>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            onClick={handleSave} 
-            disabled={saving}
-            className="bg-teal-600 hover:bg-teal-700"
-          >
+          <Button onClick={handleSave} disabled={saving} className="bg-teal-600 hover:bg-teal-700">
             <Save size={18} className="mr-2" />
-            {saving ? 'Salvando...' : 'Salvar Alterações'}
+            {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
           {onPreview && (
             <Button onClick={handlePreviewClick} variant="outline">
@@ -102,22 +101,30 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
       />
 
       {/* Grupos de Vistoria */}
-      {formData.grupos.map((grupo, index) => (
-        <GrupoVistoria
-          key={index}
-          grupo={grupo}
-          index={index}
-          ambientesDisponiveis={ambientesDisponiveis}
-          gruposDisponiveis={gruposDisponiveis}
-          statusOptions={statusOptions}
-          canRemove={formData.grupos.length > 1}
-          isEditing={true}
-          onGrupoChange={handleGrupoChange}
-          onRemoverGrupo={removerGrupo}
-          onFotosChange={handleFotosChange}
-          onFotosExistentesChange={handleFotosExistentesChange}
-        />
-      ))}
+      {formData.grupos.map((grupo, index) => {
+        const condominioAtual = condominios.find(c => c.id === formData.condominio_id);
+        return (
+          <GrupoVistoria
+            key={index}
+            grupo={grupo}
+            index={index}
+            ambientesDisponiveis={ambientesDisponiveis}
+            gruposDisponiveis={gruposDisponiveis}
+            statusOptions={statusOptions}
+            canRemove={formData.grupos.length > 1}
+            isEditing={true}
+            onGrupoChange={handleGrupoChange}
+            onRemoverGrupo={removerGrupo}
+            onFotosChange={handleFotosChange}
+            onFotosExistentesChange={handleFotosExistentesChange}
+            vistoriaId={vistoriaId}
+            condominioInfo={
+              condominioAtual ? { id: condominioAtual.id, nome: condominioAtual.nome } : undefined
+            }
+            responsavel={formData.responsavel}
+          />
+        );
+      })}
 
       {/* Botão para adicionar novo grupo */}
       <div className="flex justify-center">
@@ -129,8 +136,8 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
 
       {/* Observações Gerais */}
       <ObservacoesGerais
-        observacoes={formData.observacoes_gerais || ''}
-        onObservacoesChange={(value) => handleInputChange('observacoes_gerais', value)}
+        observacoes={formData.observacoes_gerais || ""}
+        onObservacoesChange={value => handleInputChange("observacoes_gerais", value)}
       />
     </div>
   );

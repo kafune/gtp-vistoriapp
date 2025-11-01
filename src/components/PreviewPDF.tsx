@@ -1,11 +1,17 @@
-
-import React, { useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Download, ArrowLeft, Edit, Mail } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import React, { useMemo, useRef } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Download, ArrowLeft, Edit, Mail } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import PdfPage from "@/components/pdf/PdfPage";
+import PdfReportHeader from "@/components/pdf/PdfReportHeader";
+import PdfReportInfo from "@/components/pdf/PdfReportInfo";
+import PdfGroupTable from "@/components/pdf/PdfGroupTable";
+import PdfFooter from "@/components/pdf/PdfFooter";
+import { preloadImages } from "@/utils/pdf/imageUtils";
+import { createPDF, processPageWithFallback, addImageToPDF } from "@/utils/pdf/pdfUtils";
+import { getErrorMessage } from "@/utils/pdf/errorUtils";
+import { useObjectUrl } from "@/hooks/useObjectUrl";
 
 interface FotoComDescricao extends File {
   descricao?: string;
@@ -36,56 +42,141 @@ interface PreviewPDFProps {
   onEdit?: () => void;
 }
 
+type PageVariant = "summary" | "no-photos" | "first" | "continuation";
+
+interface PageDescriptor {
+  key: string;
+  variant: PageVariant;
+  grupo?: GrupoVistoria;
+  groupIndex?: number;
+  photos?: FotoComDescricao[];
+  startIndex?: number;
+}
+
 const PreviewPDF = ({ data, onBack, onEdit }: PreviewPDFProps) => {
   const { toast } = useToast();
   const reportRef = useRef<HTMLDivElement>(null);
+  const pages = useMemo<PageDescriptor[]>(() => {
+    if (!data.grupos || data.grupos.length === 0) {
+      return [
+        {
+          key: "summary",
+          variant: "summary",
+          photos: [],
+        },
+      ];
+    }
+
+    return data.grupos.flatMap<PageDescriptor>((grupo, groupIndex) => {
+      const fotos = grupo.fotos || [];
+
+      if (fotos.length === 0) {
+        return [
+          {
+            key: `${grupo.id}-no-fotos`,
+            variant: "no-photos",
+            grupo,
+            groupIndex,
+            photos: [],
+          },
+        ];
+      }
+
+      const firstPage: PageDescriptor = {
+        key: `${grupo.id}-0`,
+        variant: "first",
+        grupo,
+        groupIndex,
+        photos: fotos.slice(0, 2),
+        startIndex: 0,
+      };
+
+      const continuationPages = [] as PageDescriptor[];
+      for (let i = 2; i < fotos.length; i += 2) {
+        continuationPages.push({
+          key: `${grupo.id}-cont-${i}`,
+          variant: "continuation",
+          grupo,
+          groupIndex,
+          photos: fotos.slice(i, i + 2),
+          startIndex: i,
+        });
+      }
+
+      return [firstPage, ...continuationPages];
+    });
+  }, [data.grupos]);
+  const totalPages = Math.max(pages.length, 1);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString("pt-BR");
   };
 
   const getCurrentTime = () => {
     const now = new Date();
-    return now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const slugify = (text: string) => {
-    return text.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+    return now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   };
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    return text.substring(0, maxLength) + "...";
   };
 
   const handleDownloadPDF = async () => {
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
-    const pages = Array.from(
-      document.querySelectorAll(".page")
-    ) as HTMLElement[];
-
-    for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
+    if (!reportRef.current) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível localizar o conteúdo para gerar o PDF.",
+        variant: "destructive",
       });
-      const img = canvas.toDataURL("image/png");
-      if (i > 0) pdf.addPage();
-      pdf.addImage(
-        img,
-        "PNG",
-        0,
-        0,
-        pdf.internal.pageSize.getWidth(),
-        pdf.internal.pageSize.getHeight()
-      );
+      return;
     }
 
-    pdf.save(
-      `Relatorio-${data.numeroInterno}-${data.condominio.replace(/\s+/g, "-")}.pdf`
-    );
+    try {
+      toast({
+        title: "Gerando PDF",
+        description: "Preparando conteúdo...",
+      });
+
+      await preloadImages(reportRef.current);
+
+      const paginas = Array.from(reportRef.current.querySelectorAll(".page")) as HTMLElement[];
+
+      const paginasValidas = paginas.filter(
+        pagina => pagina.offsetWidth > 0 && pagina.offsetHeight > 0,
+      );
+
+      if (paginasValidas.length === 0) {
+        throw new Error("Nenhuma página válida encontrada para o PDF.");
+      }
+
+      const pdf = createPDF();
+
+      for (let i = 0; i < paginasValidas.length; i++) {
+        const imageData = await processPageWithFallback(paginasValidas[i], i);
+        addImageToPDF(pdf, imageData, i > 0);
+      }
+
+      const fileName = `Relatorio-${data.numeroInterno}-${data.condominio.replace(
+        /\s+/g,
+        "-",
+      )}.pdf`;
+
+      pdf.save(fileName);
+
+      toast({
+        title: "PDF Gerado",
+        description: `Relatório salvo com ${paginasValidas.length} página(s).`,
+      });
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      toast({
+        title: "Erro na Geração do PDF",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendEmail = () => {
@@ -93,7 +184,7 @@ const PreviewPDF = ({ data, onBack, onEdit }: PreviewPDFProps) => {
       title: "Email Enviado",
       description: "O relatório foi enviado por email com sucesso.",
     });
-    console.log('Enviando email com dados:', data);
+    console.log("Enviando email com dados:", data);
   };
 
   const handleEdit = () => {
@@ -104,160 +195,63 @@ const PreviewPDF = ({ data, onBack, onEdit }: PreviewPDFProps) => {
     }
   };
 
-  const calculateTotalPages = () => {
-    let totalPages = 0;
-    data.grupos.forEach(grupo => {
-      totalPages += Math.ceil(grupo.fotos.length / 2);
-    });
-    return totalPages;
-  };
-
-  const totalPages = calculateTotalPages();
-
-  const renderCabecalho = () => (
-    <div className="bg-brand-purple text-white p-4 rounded-t-lg mb-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center justify-center">
-          <img 
-            src="/lovable-uploads/9e07dcd0-b996-4996-9028-7daeb90e3140.png" 
-            alt="Logo GTP Esquerda" 
-            className="w-20 h-20 object-contain"
-          />
-        </div>
-        <div className="text-center">
-          <h1 className="text-xl font-bold">Relatório de Vistoria Técnica - GTP</h1>
-          <p className="text-purple-200 text-sm">Sistema de Vistorias Prediais</p>
-        </div>
-        <div className="flex items-center justify-center">
-          <img 
-            src="/lovable-uploads/bfe02df4-f545-4232-ad0a-e69690083a38.png" 
-            alt="Logo GTP Direita" 
-            className="w-20 h-20 object-contain"
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderInformacoesVistoria = () => (
-    <div className="bg-gray-100 p-3 rounded-lg mb-4">
-      <div className="grid grid-cols-4 gap-3 text-xs">
-        <div>
-          <span className="font-semibold">Data de emissão:</span>
-          <br />
-          {formatDate(new Date().toISOString())}
-        </div>
-        <div>
-          <span className="font-semibold">Hora:</span>
-          <br />
-          {getCurrentTime()}
-        </div>
-        <div>
-          <span className="font-semibold">Usuário:</span>
-          <br />
-          {data.responsavel || 'Não informado'}
-        </div>
-        <div>
-          <span className="font-semibold">Empreendimento:</span>
-          <br />
-          {data.condominio}
-        </div>
-        <div className="col-span-2">
-          <span className="font-semibold">Nº interno da vistoria:</span>
-          <br />
-          {data.numeroInterno}
-        </div>
-        <div className="col-span-2">
-          <span className="font-semibold">Data da vistoria:</span>
-          <br />
-          {formatDate(data.dataVistoria)}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderTabelaGrupo = (grupo: GrupoVistoria, grupoIndex: number) => (
-    <div className="mb-4">
-      <h3 className="text-base font-semibold mb-2 text-brand-purple">
-        Sistema de Vistoria {grupoIndex + 1}
-      </h3>
-      <table className="w-full border-collapse border border-gray-300 text-xs">
-        <thead>
-          <tr className="bg-brand-purple text-white">
-            <th className="border border-gray-300 p-2 text-center w-[15%]">Ambiente</th>
-            <th className="border border-gray-300 p-2 text-center w-[15%]">Sistema</th>
-            <th className="border border-gray-300 p-2 text-center w-[15%]">Subsistema</th>
-            <th className="border border-gray-300 p-2 text-center w-[12%]">Status</th>
-            <th className="border border-gray-300 p-2 text-center w-[43%]">Parecer</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="border border-gray-300 p-2 text-center align-middle" style={{ textAlign: 'center', verticalAlign: 'middle' }}>{grupo.ambiente}</td>
-            <td className="border border-gray-300 p-2 text-center align-middle" style={{ textAlign: 'center', verticalAlign: 'middle' }}>{grupo.grupo}</td>
-            <td className="border border-gray-300 p-2 text-center align-middle" style={{ textAlign: 'center', verticalAlign: 'middle' }}>{grupo.item}</td>
-            <td className="border border-gray-300 p-2 text-center align-middle" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <span className={`inline-block px-2 py-1 rounded text-xs ${
-                  grupo.status === 'N/A' ? 'bg-gray-200' :
-                  grupo.status === 'Conforme' ? 'bg-brand-green text-white' :
-                  grupo.status === 'Não Conforme' ? 'bg-red-200 text-red-800' :
-                  'bg-yellow-200 text-yellow-800'
-                }`} style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px' }}>
-                  {grupo.status}
-                </span>
-              </div>
-            </td>
-            <td className="border border-gray-300 p-2 text-center align-middle" style={{ textAlign: 'center', verticalAlign: 'middle', wordBreak: 'break-word', hyphens: 'auto' }}>
-              {truncateText(grupo.parecer, 200)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const renderObservacoesGerais = () => (
+  const renderObservacoesGerais = () =>
     data.observacoes && (
       <div className="mb-2">
         <h3 className="text-sm font-semibold mb-1 text-brand-purple">Observações Gerais</h3>
-        <p className="text-xs text-gray-700 bg-gray-50 p-2 rounded leading-tight" style={{ wordBreak: 'break-word', hyphens: 'auto' }}>
+        <p
+          className="text-xs text-gray-700 bg-gray-50 p-2 rounded leading-tight"
+          style={{ wordBreak: "break-word", hyphens: "auto" }}
+        >
           {truncateText(data.observacoes, 150)}
         </p>
       </div>
-    )
-  );
+    );
 
-  const renderRodape = (currentPageNumber: number) => (
+  const dataEmissaoAtual = formatDate(new Date().toISOString());
+  const horaAtual = getCurrentTime();
+  const dataHoraEmissao = `${dataEmissaoAtual} às ${horaAtual}`;
+
+  const renderRodape = (currentPageNumber: number, totalPageCount: number) => (
     <div className="mt-auto">
-      {/* Observações Gerais no rodapé */}
       {renderObservacoesGerais()}
-      
-      {/* Rodapé com numeração */}
-      <div className="border-t pt-2 text-xs text-gray-600 flex justify-between items-center">
-        <p>Relatório gerado automaticamente pelo Sistema de Vistorias - {formatDate(new Date().toISOString())} às {getCurrentTime()}</p>
-        <p className="font-medium">Página {currentPageNumber}/{totalPages}</p>
-      </div>
+      <PdfFooter
+        paginaAtual={currentPageNumber}
+        totalPaginas={totalPageCount}
+        dataHoraEmissao={dataHoraEmissao}
+      />
     </div>
   );
 
-  const renderFotoCard = (foto: FotoComDescricao, fotoIndex: number, grupoIndex: number) => {
-    const fotoComDescricao = foto as File & { descricao?: string };
+  const FotoCard: React.FC<{ foto: FotoComDescricao; fotoIndex: number; grupoIndex: number }> = ({
+    foto,
+    fotoIndex,
+    grupoIndex,
+  }) => {
     const numeroFoto = fotoIndex + 1;
-    
+    const descricao = (foto as FotoComDescricao).descricao || "Evidência fotográfica da vistoria";
+    const imageUrl = useObjectUrl(foto);
+
+    if (!imageUrl) {
+      return null;
+    }
+
     return (
       <div className="border rounded-lg p-2 flex-1">
         <img
-          src={URL.createObjectURL(foto)}
+          src={imageUrl}
           alt={`Foto ${numeroFoto} - Sistema ${grupoIndex + 1}`}
           className="w-full aspect-square object-cover rounded mb-2"
         />
         <div>
           <p className="text-xs font-medium mb-1">
-            Foto {String(numeroFoto).padStart(2, '0')} - Sistema {grupoIndex + 1}
+            Foto {String(numeroFoto).padStart(2, "0")} - Sistema {grupoIndex + 1}
           </p>
-          <p className="text-xs text-gray-700 leading-relaxed" style={{ wordBreak: 'break-word', hyphens: 'auto' }}>
-            {truncateText(fotoComDescricao.descricao || 'Evidência fotográfica da vistoria', 200)}
+          <p
+            className="text-xs text-gray-700 leading-relaxed"
+            style={{ wordBreak: "break-word", hyphens: "auto" }}
+          >
+            {truncateText(descricao, 200)}
           </p>
         </div>
       </div>
@@ -292,61 +286,121 @@ const PreviewPDF = ({ data, onBack, onEdit }: PreviewPDFProps) => {
       </div>
 
       {/* Preview do PDF */}
-      <Card className="max-w-none mx-auto" style={{ width: '210mm', maxWidth: '210mm' }}>
+      <Card className="max-w-none mx-auto" style={{ width: "210mm", maxWidth: "210mm" }}>
         <div ref={reportRef} className="bg-white">
-          {(() => {
-            let currentPageNumber = 0;
-            
-            return data.grupos.map((grupo, grupoIndex) => (
-              <React.Fragment key={grupo.id}>
-                {grupo.fotos.map((foto, idx) => {
-                  const isFirstOfPair = idx % 2 === 0;
-                  const isLastOfPair = idx % 2 === 1 || idx === grupo.fotos.length - 1;
+          {pages.map((page, index) => {
+            const pageNumber = index + 1;
 
-                  if (isFirstOfPair) {
-                    currentPageNumber++;
-                  }
+            if (page.variant === "summary") {
+              return (
+                <PdfPage key={page.key} className="gap-3">
+                  <PdfReportHeader />
+                  <PdfReportInfo
+                    dataEmissao={dataEmissaoAtual}
+                    hora={horaAtual}
+                    usuario={data.responsavel || "Não informado"}
+                    empreendimento={data.condominio}
+                    numeroInterno={data.numeroInterno}
+                    dataVistoria={formatDate(data.dataVistoria)}
+                  />
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <p className="text-sm">Nenhum sistema de vistoria cadastrado.</p>
+                      <p className="text-xs mt-2">O relatório contém apenas informações gerais.</p>
+                    </div>
+                  </div>
+                  {renderRodape(pageNumber, totalPages)}
+                </PdfPage>
+              );
+            }
 
-                  return (
-                    <React.Fragment key={idx}>
-                      {isFirstOfPair && (
-                        <div className="page flex flex-col gap-3 min-h-screen">
-                          {/* Cabeçalho + tabela só no idx === 0 */}
-                          {idx === 0 && renderCabecalho()}
-                          {idx === 0 && renderInformacoesVistoria()}
-                          {idx === 0 && renderTabelaGrupo(grupo, grupoIndex)}
-                          
-                          {/* Título das evidências fotográficas */}
-                          {idx === 0 ? (
-                            <h4 className="text-sm font-semibold mb-3 text-brand-purple">
-                              Evidências Fotográficas - Sistema {grupoIndex + 1}
-                            </h4>
-                          ) : (
-                            <>
-                              {renderCabecalho()}
-                              <h4 className="text-sm font-semibold mb-3 text-brand-purple">
-                                Evidências Fotográficas - Sistema {grupoIndex + 1} (Continuação)
-                              </h4>
-                            </>
-                          )}
-                          
-                          <div className="flex gap-4 mb-4 flex-1">
-                            {/* Renderizar a foto */}
-                            {renderFotoCard(foto, idx, grupoIndex)}
-                            
-                            {/* Renderizar a segunda foto se existir */}
-                            {!isLastOfPair && grupo.fotos[idx + 1] && renderFotoCard(grupo.fotos[idx + 1], idx + 1, grupoIndex)}
-                          </div>
-                          
-                          {renderRodape(currentPageNumber)}
-                        </div>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </React.Fragment>
-            ));
-          })()}
+            if (!page.grupo || typeof page.groupIndex !== "number") {
+              return null;
+            }
+
+            if (page.variant === "no-photos") {
+              return (
+                <PdfPage key={page.key} className="gap-3">
+                  <PdfReportHeader />
+                  <PdfReportInfo
+                    dataEmissao={dataEmissaoAtual}
+                    hora={horaAtual}
+                    usuario={data.responsavel || "Não informado"}
+                    empreendimento={data.condominio}
+                    numeroInterno={data.numeroInterno}
+                    dataVistoria={formatDate(data.dataVistoria)}
+                  />
+                  <PdfGroupTable
+                    indice={page.groupIndex + 1}
+                    ambiente={page.grupo.ambiente}
+                    grupo={page.grupo.grupo}
+                    item={page.grupo.item}
+                    status={page.grupo.status}
+                    parecer={truncateText(page.grupo.parecer, 200)}
+                  />
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <p className="text-sm">
+                        Nenhuma evidência fotográfica disponível para este sistema.
+                      </p>
+                      <p className="text-xs mt-2">
+                        Sistema: {page.grupo.ambiente} - {page.grupo.grupo}
+                      </p>
+                    </div>
+                  </div>
+                  {renderRodape(pageNumber, totalPages)}
+                </PdfPage>
+              );
+            }
+
+            const titulo =
+              page.variant === "first"
+                ? `Evidências Fotográficas - Sistema ${page.groupIndex + 1}`
+                : `Evidências Fotográficas - Sistema ${page.groupIndex + 1} (Continuação)`;
+
+            return (
+              <PdfPage key={page.key} className="gap-3">
+                <PdfReportHeader />
+                {page.variant === "first" && (
+                  <>
+                    <PdfReportInfo
+                      dataEmissao={dataEmissaoAtual}
+                      hora={horaAtual}
+                      usuario={data.responsavel || "Não informado"}
+                      empreendimento={data.condominio}
+                      numeroInterno={data.numeroInterno}
+                      dataVistoria={formatDate(data.dataVistoria)}
+                    />
+                    <PdfGroupTable
+                      indice={page.groupIndex + 1}
+                      ambiente={page.grupo.ambiente}
+                      grupo={page.grupo.grupo}
+                      item={page.grupo.item}
+                      status={page.grupo.status}
+                      parecer={truncateText(page.grupo.parecer, 200)}
+                    />
+                  </>
+                )}
+
+                <h4 className="text-sm font-semibold mb-3 text-brand-purple">{titulo}</h4>
+
+                <div className="flex gap-4 flex-1">
+                  {page.photos?.map((foto, fotoIndex) => (
+                    <div key={`${page.key}-${fotoIndex}`} className="flex-1 flex">
+                      <FotoCard
+                        foto={foto}
+                        fotoIndex={(page.startIndex ?? 0) + fotoIndex}
+                        grupoIndex={page.groupIndex}
+                      />
+                    </div>
+                  ))}
+                  {page.photos && page.photos.length === 1 && <div className="flex-1" />}
+                </div>
+
+                {renderRodape(pageNumber, totalPages)}
+              </PdfPage>
+            );
+          })}
         </div>
       </Card>
     </div>

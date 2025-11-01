@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface UsuarioCondominio {
   id: string;
@@ -23,11 +23,12 @@ export const useUsuarioCondominios = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const carregarAssociacoes = async () => {
+  const carregarAssociacoes = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('usuario_condominios')
-        .select(`
+        .from("usuario_condominios")
+        .select(
+          `
           *,
           profiles!usuario_condominios_user_id_fkey (
             id,
@@ -39,32 +40,37 @@ export const useUsuarioCondominios = () => {
             id,
             nome
           )
-        `)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .order("created_at", { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      const associacoesFormatadas = data.map(item => ({
+      const associacoesFormatadas = (data || []).map(item => ({
         id: item.id,
         user_id: item.user_id,
         condominio_id: item.condominio_id,
-        usuario: item.profiles ? {
-          id: item.profiles.id,
-          nome: item.profiles.nome,
-          email: item.profiles.email,
-          role: item.profiles.role
-        } : undefined,
-        condominio: item.condominios ? {
-          id: item.condominios.id,
-          nome: item.condominios.nome
-        } : undefined
+        usuario: item.profiles
+          ? {
+              id: item.profiles.id,
+              nome: item.profiles.nome,
+              email: item.profiles.email,
+              role: item.profiles.role,
+            }
+          : undefined,
+        condominio: item.condominios
+          ? {
+              id: item.condominios.id,
+              nome: item.condominios.nome,
+            }
+          : undefined,
       }));
 
       setAssociacoes(associacoesFormatadas);
     } catch (error) {
-      console.error('Erro ao carregar associações:', error);
+      console.error("Erro ao carregar associações:", error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar as associações.",
@@ -73,33 +79,31 @@ export const useUsuarioCondominios = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     carregarAssociacoes();
-  }, []);
+  }, [carregarAssociacoes]);
 
   const criarAssociacao = async (userId: string, condominioId: string) => {
     try {
-      const { error } = await supabase
-        .from('usuario_condominios')
-        .insert({
-          user_id: userId,
-          condominio_id: condominioId
-        });
+      const { error } = await supabase.from("usuario_condominios").insert({
+        user_id: userId,
+        condominio_id: condominioId,
+      });
 
       if (error) {
         throw error;
       }
 
       await carregarAssociacoes();
-      
+
       toast({
         title: "Sucesso",
         description: "Usuário associado ao condomínio com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao criar associação:', error);
+      console.error("Erro ao criar associação:", error);
       toast({
         title: "Erro",
         description: "Não foi possível associar o usuário ao condomínio.",
@@ -110,23 +114,20 @@ export const useUsuarioCondominios = () => {
 
   const removerAssociacao = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('usuario_condominios')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("usuario_condominios").delete().eq("id", id);
 
       if (error) {
         throw error;
       }
 
       await carregarAssociacoes();
-      
+
       toast({
         title: "Sucesso",
         description: "Associação removida com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao remover associação:', error);
+      console.error("Erro ao remover associação:", error);
       toast({
         title: "Erro",
         description: "Não foi possível remover a associação.",
@@ -138,15 +139,17 @@ export const useUsuarioCondominios = () => {
   const obterCondominiosUsuario = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('usuario_condominios')
-        .select(`
+        .from("usuario_condominios")
+        .select(
+          `
           condominio_id,
           condominios (
             id,
             nome
           )
-        `)
-        .eq('user_id', userId);
+        `,
+        )
+        .eq("user_id", userId);
 
       if (error) {
         throw error;
@@ -154,7 +157,7 @@ export const useUsuarioCondominios = () => {
 
       return data?.map(item => item.condominios).filter(Boolean) || [];
     } catch (error) {
-      console.error('Erro ao obter condomínios do usuário:', error);
+      console.error("Erro ao obter condomínios do usuário:", error);
       return [];
     }
   };
@@ -165,6 +168,6 @@ export const useUsuarioCondominios = () => {
     criarAssociacao,
     removerAssociacao,
     obterCondominiosUsuario,
-    recarregar: carregarAssociacoes
+    recarregar: carregarAssociacoes,
   };
 };

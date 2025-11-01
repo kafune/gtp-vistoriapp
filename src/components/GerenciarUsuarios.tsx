@@ -1,17 +1,29 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Users, Shield, User, Copy, RefreshCw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Usuario, useUsuarios } from '@/hooks/useUsuarios';
-import { useCondominiosSupabase } from '@/hooks/useCondominiosSupabase';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, Users, Shield, User, Copy, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Usuario, useUsuarios } from "@/hooks/useUsuarios";
+import { useCondominiosSupabase } from "@/hooks/useCondominiosSupabase";
+import { supabase } from "@/integrations/supabase/client";
 
 const GerenciarUsuarios = () => {
   const { toast } = useToast();
@@ -21,49 +33,49 @@ const GerenciarUsuarios = () => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [condominioSelecionado, setCondominioSelecionado] = useState<string | undefined>(undefined);
   const [senhaModalAberto, setSenhaModalAberto] = useState(false);
-  const [senhaGerada, setSenhaGerada] = useState<string>('');
-  const [novoUsuarioId, setNovoUsuarioId] = useState<string>('');
-  const [novoUsuarioEmail, setNovoUsuarioEmail] = useState<string>('');
+  const [senhaGerada, setSenhaGerada] = useState<string>("");
+  const [novoUsuarioId, setNovoUsuarioId] = useState<string>("");
+  const [novoUsuarioEmail, setNovoUsuarioEmail] = useState<string>("");
   const [resetLoading, setResetLoading] = useState(false);
   const [definirSenhaLoading, setDefinirSenhaLoading] = useState(false);
   const [definirSenhaManual, setDefinirSenhaManual] = useState(false);
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [formData, setFormData] = useState<Omit<Usuario, 'id'>>({
-    nome: '',
-    email: '',
-    telefone: '',
-    cargo: '',
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [formData, setFormData] = useState<Omit<Usuario, "id">>({
+    nome: "",
+    email: "",
+    telefone: "",
+    cargo: "",
     ativo: true,
-    role: 'sindico',
-    email_copia_1: '',
-    email_copia_2: '',
-    email_copia_3: ''
+    role: "sindico",
+    email_copia_1: "",
+    email_copia_2: "",
+    email_copia_3: "",
   });
 
   const resetForm = () => {
     setFormData({
-      nome: '',
-      email: '',
-      telefone: '',
-      cargo: '',
+      nome: "",
+      email: "",
+      telefone: "",
+      cargo: "",
       ativo: true,
-      role: 'sindico',
-      email_copia_1: '',
-      email_copia_2: '',
-      email_copia_3: ''
+      role: "sindico",
+      email_copia_1: "",
+      email_copia_2: "",
+      email_copia_3: "",
     });
     setCondominioSelecionado(undefined);
     setEditandoId(null);
     setMostrarFormulario(false);
     setDefinirSenhaManual(false);
-    setSenha('');
-    setConfirmarSenha('');
+    setSenha("");
+    setConfirmarSenha("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.nome.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -82,11 +94,19 @@ const GerenciarUsuarios = () => {
     } else {
       if (definirSenhaManual) {
         if (!senha || senha.length < 8) {
-          toast({ title: 'Senha inválida', description: 'A senha deve ter pelo menos 8 caracteres.', variant: 'destructive' });
+          toast({
+            title: "Senha inválida",
+            description: "A senha deve ter pelo menos 8 caracteres.",
+            variant: "destructive",
+          });
           return;
         }
         if (senha !== confirmarSenha) {
-          toast({ title: 'Senhas não coincidem', description: 'Confirme a senha corretamente.', variant: 'destructive' });
+          toast({
+            title: "Senhas não coincidem",
+            description: "Confirme a senha corretamente.",
+            variant: "destructive",
+          });
           return;
         }
       }
@@ -94,23 +114,23 @@ const GerenciarUsuarios = () => {
       const result = await adicionarUsuario(
         formData,
         condominioSelecionado,
-        definirSenhaManual ? senha : undefined
+        definirSenhaManual ? senha : undefined,
       );
 
       if (!result?.error) {
-        setSenhaGerada(result?.tempPassword || '');
-        setNovoUsuarioId(result?.userId || '');
+        setSenhaGerada(result?.tempPassword || "");
+        setNovoUsuarioId(result?.userId || "");
         setNovoUsuarioEmail(formData.email);
         setSenhaModalAberto(true);
         toast({
-          title: 'Usuário cadastrado',
+          title: "Usuário cadastrado",
           description: definirSenhaManual
-            ? 'Usuário criado com a senha definida.'
-            : 'Usuário criado com sucesso. A senha temporária está abaixo.',
+            ? "Usuário criado com a senha definida."
+            : "Usuário criado com sucesso. A senha temporária está abaixo.",
         });
       }
     }
-    
+
     resetForm();
   };
 
@@ -122,16 +142,16 @@ const GerenciarUsuarios = () => {
       cargo: usuario.cargo,
       ativo: usuario.ativo,
       role: usuario.role,
-      email_copia_1: usuario.email_copia_1 || '',
-      email_copia_2: usuario.email_copia_2 || '',
-      email_copia_3: usuario.email_copia_3 || ''
+      email_copia_1: usuario.email_copia_1 || "",
+      email_copia_2: usuario.email_copia_2 || "",
+      email_copia_3: usuario.email_copia_3 || "",
     });
     setEditandoId(usuario.id);
     setMostrarFormulario(true);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este usuário?')) {
+    if (confirm("Tem certeza que deseja excluir este usuário?")) {
       removerUsuario(id);
       toast({
         title: "Usuário excluído",
@@ -140,7 +160,7 @@ const GerenciarUsuarios = () => {
     }
   };
 
-  const handleInputChange = (field: keyof Omit<Usuario, 'id'>, value: string | boolean) => {
+  const handleInputChange = (field: keyof Omit<Usuario, "id">, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -151,7 +171,7 @@ const GerenciarUsuarios = () => {
           <Users size={24} className="mr-2" />
           Gerenciar Usuários
         </h2>
-        <Button 
+        <Button
           onClick={() => setMostrarFormulario(true)}
           className="bg-teal-600 hover:bg-teal-700"
         >
@@ -164,9 +184,7 @@ const GerenciarUsuarios = () => {
       {mostrarFormulario && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              {editandoId ? 'Editar Usuário' : 'Novo Usuário'}
-            </CardTitle>
+            <CardTitle>{editandoId ? "Editar Usuário" : "Novo Usuário"}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -176,7 +194,7 @@ const GerenciarUsuarios = () => {
                   <Input
                     id="nome"
                     value={formData.nome}
-                    onChange={(e) => handleInputChange('nome', e.target.value)}
+                    onChange={e => handleInputChange("nome", e.target.value)}
                     placeholder="Nome do vistoriador"
                     required
                   />
@@ -187,7 +205,7 @@ const GerenciarUsuarios = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={e => handleInputChange("email", e.target.value)}
                     placeholder="email@exemplo.com"
                     required
                   />
@@ -197,7 +215,7 @@ const GerenciarUsuarios = () => {
                   <Input
                     id="telefone"
                     value={formData.telefone}
-                    onChange={(e) => handleInputChange('telefone', e.target.value)}
+                    onChange={e => handleInputChange("telefone", e.target.value)}
                     placeholder="(11) 99999-9999"
                   />
                 </div>
@@ -206,7 +224,7 @@ const GerenciarUsuarios = () => {
                   <Input
                     id="cargo"
                     value={formData.cargo}
-                    onChange={(e) => handleInputChange('cargo', e.target.value)}
+                    onChange={e => handleInputChange("cargo", e.target.value)}
                     placeholder="Ex: Engenheiro Civil"
                   />
                 </div>
@@ -214,7 +232,7 @@ const GerenciarUsuarios = () => {
                   <Label htmlFor="role">Perfil de Acesso</Label>
                   <Select
                     value={formData.role}
-                    onValueChange={(value: 'admin' | 'sindico') => handleInputChange('role', value)}
+                    onValueChange={(value: "admin" | "sindico") => handleInputChange("role", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o perfil" />
@@ -239,14 +257,16 @@ const GerenciarUsuarios = () => {
                   <Label htmlFor="condominio">Condomínio (acesso)</Label>
                   <Select
                     value={condominioSelecionado || undefined}
-                    onValueChange={(value) => setCondominioSelecionado(value)}
+                    onValueChange={value => setCondominioSelecionado(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um condomínio" />
                     </SelectTrigger>
                     <SelectContent>
-                      {condominios.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                      {condominios.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -257,18 +277,34 @@ const GerenciarUsuarios = () => {
               {!editandoId && (
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
-                    <Switch id="definir-senha" checked={definirSenhaManual} onCheckedChange={setDefinirSenhaManual} />
+                    <Switch
+                      id="definir-senha"
+                      checked={definirSenhaManual}
+                      onCheckedChange={setDefinirSenhaManual}
+                    />
                     <Label htmlFor="definir-senha">Definir senha manualmente</Label>
                   </div>
                   {definirSenhaManual && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="senha">Senha</Label>
-                        <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres" />
+                        <Input
+                          id="senha"
+                          type="password"
+                          value={senha}
+                          onChange={e => setSenha(e.target.value)}
+                          placeholder="Mínimo 8 caracteres"
+                        />
                       </div>
                       <div>
                         <Label htmlFor="confirmarSenha">Confirmar senha</Label>
-                        <Input id="confirmarSenha" type="password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} placeholder="Repita a senha" />
+                        <Input
+                          id="confirmarSenha"
+                          type="password"
+                          value={confirmarSenha}
+                          onChange={e => setConfirmarSenha(e.target.value)}
+                          placeholder="Repita a senha"
+                        />
                       </div>
                     </div>
                   )}
@@ -277,7 +313,9 @@ const GerenciarUsuarios = () => {
 
               {/* Seção de E-mails para Cópia */}
               <div className="border-t pt-4 mt-4">
-                <h4 className="text-lg font-medium mb-3 text-gray-700">E-mails para Cópia (Administradores e Conselheiros)</h4>
+                <h4 className="text-lg font-medium mb-3 text-gray-700">
+                  E-mails para Cópia (Administradores e Conselheiros)
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="email_copia_1">E-mail Cópia 1</Label>
@@ -285,7 +323,7 @@ const GerenciarUsuarios = () => {
                       id="email_copia_1"
                       type="email"
                       value={formData.email_copia_1}
-                      onChange={(e) => handleInputChange('email_copia_1', e.target.value)}
+                      onChange={e => handleInputChange("email_copia_1", e.target.value)}
                       placeholder="email1@exemplo.com"
                     />
                   </div>
@@ -295,7 +333,7 @@ const GerenciarUsuarios = () => {
                       id="email_copia_2"
                       type="email"
                       value={formData.email_copia_2}
-                      onChange={(e) => handleInputChange('email_copia_2', e.target.value)}
+                      onChange={e => handleInputChange("email_copia_2", e.target.value)}
                       placeholder="email2@exemplo.com"
                     />
                   </div>
@@ -305,19 +343,25 @@ const GerenciarUsuarios = () => {
                       id="email_copia_3"
                       type="email"
                       value={formData.email_copia_3}
-                      onChange={(e) => handleInputChange('email_copia_3', e.target.value)}
+                      onChange={e => handleInputChange("email_copia_3", e.target.value)}
                       placeholder="email3@exemplo.com"
                     />
                   </div>
                 </div>
               </div>
-              
+
               {/* Redefinição de senha - somente na edição */}
               {editandoId && (
                 <div className="border-t pt-4 mt-4 space-y-3">
-                  <h4 className="text-lg font-medium mb-1 text-gray-700">Redefinir senha do usuário</h4>
+                  <h4 className="text-lg font-medium mb-1 text-gray-700">
+                    Redefinir senha do usuário
+                  </h4>
                   <div className="flex items-center space-x-2">
-                    <Switch id="redefinir-senha" checked={definirSenhaManual} onCheckedChange={setDefinirSenhaManual} />
+                    <Switch
+                      id="redefinir-senha"
+                      checked={definirSenhaManual}
+                      onCheckedChange={setDefinirSenhaManual}
+                    />
                     <Label htmlFor="redefinir-senha">Redefinir senha manualmente</Label>
                   </div>
                   {definirSenhaManual && (
@@ -325,11 +369,23 @@ const GerenciarUsuarios = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="senha-edit">Nova senha</Label>
-                          <Input id="senha-edit" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres" />
+                          <Input
+                            id="senha-edit"
+                            type="password"
+                            value={senha}
+                            onChange={e => setSenha(e.target.value)}
+                            placeholder="Mínimo 8 caracteres"
+                          />
                         </div>
                         <div>
                           <Label htmlFor="confirmarSenha-edit">Confirmar nova senha</Label>
-                          <Input id="confirmarSenha-edit" type="password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} placeholder="Repita a senha" />
+                          <Input
+                            id="confirmarSenha-edit"
+                            type="password"
+                            value={confirmarSenha}
+                            onChange={e => setConfirmarSenha(e.target.value)}
+                            placeholder="Repita a senha"
+                          />
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -338,25 +394,43 @@ const GerenciarUsuarios = () => {
                           onClick={async () => {
                             if (!editandoId) return;
                             if (!senha || senha.length < 8) {
-                              toast({ title: 'Senha inválida', description: 'A senha deve ter pelo menos 8 caracteres.', variant: 'destructive' });
+                              toast({
+                                title: "Senha inválida",
+                                description: "A senha deve ter pelo menos 8 caracteres.",
+                                variant: "destructive",
+                              });
                               return;
                             }
                             if (senha !== confirmarSenha) {
-                              toast({ title: 'Senhas não coincidem', description: 'Confirme a senha corretamente.', variant: 'destructive' });
+                              toast({
+                                title: "Senhas não coincidem",
+                                description: "Confirme a senha corretamente.",
+                                variant: "destructive",
+                              });
                               return;
                             }
                             try {
                               setDefinirSenhaLoading(true);
-                              const { error } = await supabase.functions.invoke('resetar-senha-usuario', {
-                                body: { userId: editandoId, newPassword: senha },
-                              });
+                              const { error } = await supabase.functions.invoke(
+                                "resetar-senha-usuario",
+                                {
+                                  body: { userId: editandoId, newPassword: senha },
+                                },
+                              );
                               if (error) throw error;
-                              toast({ title: 'Senha atualizada', description: 'A nova senha foi aplicada com sucesso.' });
-                              setSenha('');
-                              setConfirmarSenha('');
+                              toast({
+                                title: "Senha atualizada",
+                                description: "A nova senha foi aplicada com sucesso.",
+                              });
+                              setSenha("");
+                              setConfirmarSenha("");
                               setDefinirSenhaManual(false);
                             } catch (err) {
-                              toast({ title: 'Erro', description: 'Não foi possível atualizar a senha.', variant: 'destructive' });
+                              toast({
+                                title: "Erro",
+                                description: "Não foi possível atualizar a senha.",
+                                variant: "destructive",
+                              });
                             } finally {
                               setDefinirSenhaLoading(false);
                             }
@@ -364,26 +438,26 @@ const GerenciarUsuarios = () => {
                           disabled={definirSenhaLoading}
                           className="bg-teal-600 hover:bg-teal-700"
                         >
-                          {definirSenhaLoading ? 'Aplicando...' : 'Aplicar nova senha'}
+                          {definirSenhaLoading ? "Aplicando..." : "Aplicar nova senha"}
                         </Button>
                       </div>
                     </div>
                   )}
                 </div>
               )}
-              
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="ativo"
                   checked={formData.ativo}
-                  onCheckedChange={(checked) => handleInputChange('ativo', checked)}
+                  onCheckedChange={checked => handleInputChange("ativo", checked)}
                 />
                 <Label htmlFor="ativo">Usuário ativo</Label>
               </div>
 
               <div className="flex space-x-2">
                 <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
-                  {editandoId ? 'Atualizar' : 'Cadastrar'}
+                  {editandoId ? "Atualizar" : "Cadastrar"}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
@@ -421,19 +495,21 @@ const GerenciarUsuarios = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {usuarios.map((usuario) => (
+                  {usuarios.map(usuario => (
                     <tr key={usuario.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-3">{usuario.nome}</td>
                       <td className="border border-gray-300 p-3">{usuario.email}</td>
                       <td className="border border-gray-300 p-3">{usuario.telefone}</td>
                       <td className="border border-gray-300 p-3">{usuario.cargo}</td>
                       <td className="border border-gray-300 p-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                          usuario.role === 'admin' 
-                            ? 'bg-purple-200 text-purple-800' 
-                            : 'bg-blue-200 text-blue-800'
-                        }`}>
-                          {usuario.role === 'admin' ? (
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs ${
+                            usuario.role === "admin"
+                              ? "bg-purple-200 text-purple-800"
+                              : "bg-blue-200 text-blue-800"
+                          }`}
+                        >
+                          {usuario.role === "admin" ? (
                             <>
                               <Shield size={12} className="mr-1" />
                               Admin
@@ -447,21 +523,19 @@ const GerenciarUsuarios = () => {
                         </span>
                       </td>
                       <td className="border border-gray-300 p-3 text-center">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          usuario.ativo 
-                            ? 'bg-green-200 text-green-800' 
-                            : 'bg-red-200 text-red-800'
-                        }`}>
-                          {usuario.ativo ? 'Ativo' : 'Inativo'}
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            usuario.ativo
+                              ? "bg-green-200 text-green-800"
+                              : "bg-red-200 text-red-800"
+                          }`}
+                        >
+                          {usuario.ativo ? "Ativo" : "Inativo"}
                         </span>
                       </td>
                       <td className="border border-gray-300 p-3">
                         <div className="flex justify-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(usuario)}
-                          >
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(usuario)}>
                             <Edit size={14} />
                           </Button>
                           <Button
@@ -487,14 +561,20 @@ const GerenciarUsuarios = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Dados de acesso do novo usuário</DialogTitle>
-            <DialogDescription>Copie e envie por e-mail. Recomende que altere a senha no primeiro acesso.</DialogDescription>
+            <DialogDescription>
+              Copie e envie por e-mail. Recomende que altere a senha no primeiro acesso.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Email</Label>
               <div className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                 <span className="truncate">{novoUsuarioEmail}</span>
-                <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(novoUsuarioEmail)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigator.clipboard.writeText(novoUsuarioEmail)}
+                >
                   <Copy className="mr-2 h-4 w-4" /> Copiar
                 </Button>
               </div>
@@ -503,7 +583,11 @@ const GerenciarUsuarios = () => {
               <Label>Senha temporária</Label>
               <div className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                 <span className="font-mono tracking-wider">{senhaGerada}</span>
-                <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(senhaGerada)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigator.clipboard.writeText(senhaGerada)}
+                >
                   <Copy className="mr-2 h-4 w-4" /> Copiar
                 </Button>
               </div>
@@ -516,22 +600,35 @@ const GerenciarUsuarios = () => {
                 if (!novoUsuarioId) return;
                 try {
                   setResetLoading(true);
-                  const { data, error } = await supabase.functions.invoke('resetar-senha-usuario', {
+                  const { data, error } = await supabase.functions.invoke<{
+                    success: boolean;
+                    tempPassword: string;
+                  }>("resetar-senha-usuario", {
                     body: { userId: novoUsuarioId },
                   });
                   if (error) throw error;
-                  const nova = (data as any)?.tempPassword as string;
-                  setSenhaGerada(nova);
-                  toast({ title: 'Senha atualizada', description: 'Nova senha temporária gerada.' });
+                  if (!data?.tempPassword) {
+                    throw new Error("Resposta inválida da função resetar-senha-usuario");
+                  }
+                  setSenhaGerada(data.tempPassword);
+                  toast({
+                    title: "Senha atualizada",
+                    description: "Nova senha temporária gerada.",
+                  });
                 } catch (e) {
-                  toast({ title: 'Erro', description: 'Não foi possível gerar nova senha.', variant: 'destructive' });
+                  toast({
+                    title: "Erro",
+                    description: "Não foi possível gerar nova senha.",
+                    variant: "destructive",
+                  });
                 } finally {
                   setResetLoading(false);
                 }
               }}
               disabled={resetLoading}
             >
-              <RefreshCw className="mr-2 h-4 w-4" /> {resetLoading ? 'Gerando...' : 'Gerar nova senha'}
+              <RefreshCw className="mr-2 h-4 w-4" />{" "}
+              {resetLoading ? "Gerando..." : "Gerar nova senha"}
             </Button>
             <Button onClick={() => setSenhaModalAberto(false)}>Fechar</Button>
           </DialogFooter>

@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Mail, Building, Calendar, User, Users, Send, X, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Mail, Building, Calendar, User, Users, Send, X, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DadosEnvio {
   vistoriaId: string;
@@ -38,24 +44,24 @@ interface VerificacaoEnvioEmailProps {
   onEnviar: (dados: DadosEnvio) => Promise<void>;
 }
 
-export const VerificacaoEnvioEmail = ({ 
-  open, 
-  onClose, 
-  dadosVistoria, 
-  onEnviar 
+export const VerificacaoEnvioEmail = ({
+  open,
+  onClose,
+  dadosVistoria,
+  onEnviar,
 }: VerificacaoEnvioEmailProps) => {
   const { toast } = useToast();
   const [enviando, setEnviando] = useState(false);
   const [dadosEnvio, setDadosEnvio] = useState<DadosEnvio>({
-    vistoriaId: dadosVistoria.id || '',
-    nomeCondominio: dadosVistoria.condominio?.nome || 'Não informado',
+    vistoriaId: dadosVistoria.id || "",
+    nomeCondominio: dadosVistoria.condominio?.nome || "Não informado",
     numeroInterno: dadosVistoria.numero_interno,
     dataVistoria: dadosVistoria.data_vistoria,
     responsavel: dadosVistoria.responsavel,
-    emailPrincipal: '',
-    emailsCopia: []
+    emailPrincipal: "",
+    emailsCopia: [],
   });
-  const [emailCopiaTemp, setEmailCopiaTemp] = useState('');
+  const [emailCopiaTemp, setEmailCopiaTemp] = useState("");
 
   // Carregar dados do condomínio e perfil do usuário
   useEffect(() => {
@@ -63,30 +69,30 @@ export const VerificacaoEnvioEmail = ({
       try {
         // Buscar dados completos do condomínio
         const { data: condominioData, error: condominioError } = await supabase
-          .from('condominios')
-          .select('nome, email')
-          .eq('id', dadosVistoria.condominio_id)
+          .from("condominios")
+          .select("nome, email")
+          .eq("id", dadosVistoria.condominio_id)
           .single();
 
         if (condominioError) {
-          console.error('Erro ao buscar condomínio:', condominioError);
+          console.error("Erro ao buscar condomínio:", condominioError);
         }
 
         // Buscar perfil do usuário atual para emails de cópia
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData.user) {
-          console.error('Usuário não autenticado');
+          console.error("Usuário não autenticado");
           return;
         }
 
         const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('email, email_copia_1, email_copia_2, email_copia_3')
-          .eq('id', userData.user.id)
+          .from("profiles")
+          .select("email, email_copia_1, email_copia_2, email_copia_3")
+          .eq("id", userData.user.id)
           .single();
 
         if (profileError) {
-          console.error('Erro ao buscar perfil:', profileError);
+          console.error("Erro ao buscar perfil:", profileError);
         }
 
         const emailsCopia = [];
@@ -97,12 +103,11 @@ export const VerificacaoEnvioEmail = ({
         setDadosEnvio(prev => ({
           ...prev,
           nomeCondominio: condominioData?.nome || prev.nomeCondominio,
-          emailPrincipal: condominioData?.email || profileData?.email || '',
-          emailsCopia: emailsCopia.filter(Boolean)
+          emailPrincipal: condominioData?.email || profileData?.email || "",
+          emailsCopia: emailsCopia.filter(Boolean),
         }));
-
       } catch (error) {
-        console.error('Erro ao carregar dados de email:', error);
+        console.error("Erro ao carregar dados de email:", error);
         toast({
           title: "Aviso",
           description: "Alguns dados de email não puderam ser carregados. Verifique os campos.",
@@ -114,16 +119,16 @@ export const VerificacaoEnvioEmail = ({
     if (open) {
       carregarDadosEmail();
     }
-  }, [open, dadosVistoria.condominio_id]);
+  }, [open, dadosVistoria.condominio_id, toast]);
 
   const adicionarEmailCopia = () => {
-    if (emailCopiaTemp && emailCopiaTemp.includes('@')) {
+    if (emailCopiaTemp && emailCopiaTemp.includes("@")) {
       if (!dadosEnvio.emailsCopia.includes(emailCopiaTemp)) {
         setDadosEnvio(prev => ({
           ...prev,
-          emailsCopia: [...prev.emailsCopia, emailCopiaTemp]
+          emailsCopia: [...prev.emailsCopia, emailCopiaTemp],
         }));
-        setEmailCopiaTemp('');
+        setEmailCopiaTemp("");
       } else {
         toast({
           title: "Aviso",
@@ -143,12 +148,12 @@ export const VerificacaoEnvioEmail = ({
   const removerEmailCopia = (index: number) => {
     setDadosEnvio(prev => ({
       ...prev,
-      emailsCopia: prev.emailsCopia.filter((_, i) => i !== index)
+      emailsCopia: prev.emailsCopia.filter((_, i) => i !== index),
     }));
   };
 
   const handleEnviar = async () => {
-    if (!dadosEnvio.emailPrincipal || !dadosEnvio.emailPrincipal.includes('@')) {
+    if (!dadosEnvio.emailPrincipal || !dadosEnvio.emailPrincipal.includes("@")) {
       toast({
         title: "Erro",
         description: "Email principal é obrigatório e deve ser válido.",
@@ -162,18 +167,18 @@ export const VerificacaoEnvioEmail = ({
       await onEnviar(dadosEnvio);
       onClose();
     } catch (error) {
-      console.error('Erro ao enviar email:', error);
+      console.error("Erro ao enviar email:", error);
     } finally {
       setEnviando(false);
     }
   };
 
   const formatarData = (dataString: string) => {
-    return new Date(dataString + 'T00:00:00').toLocaleDateString('pt-BR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dataString + "T00:00:00").toLocaleDateString("pt-BR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -194,7 +199,7 @@ export const VerificacaoEnvioEmail = ({
               <Building className="h-5 w-5 text-primary" />
               Informações da Vistoria
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <Label className="text-muted-foreground">Condomínio</Label>
@@ -232,14 +237,12 @@ export const VerificacaoEnvioEmail = ({
 
             {/* Email Principal */}
             <div className="space-y-2">
-              <Label htmlFor="emailPrincipal">
-                Email Principal (Síndico do Condomínio) *
-              </Label>
+              <Label htmlFor="emailPrincipal">Email Principal (Síndico do Condomínio) *</Label>
               <Input
                 id="emailPrincipal"
                 type="email"
                 value={dadosEnvio.emailPrincipal}
-                onChange={(e) => setDadosEnvio(prev => ({ ...prev, emailPrincipal: e.target.value }))}
+                onChange={e => setDadosEnvio(prev => ({ ...prev, emailPrincipal: e.target.value }))}
                 placeholder="email@sindico.com"
                 className="w-full"
               />
@@ -251,7 +254,7 @@ export const VerificacaoEnvioEmail = ({
             {/* Emails de Cópia */}
             <div className="space-y-3">
               <Label>Emails em Cópia (Opcionais)</Label>
-              
+
               {/* Lista de emails de cópia */}
               {dadosEnvio.emailsCopia.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -274,14 +277,14 @@ export const VerificacaoEnvioEmail = ({
                 <Input
                   type="email"
                   value={emailCopiaTemp}
-                  onChange={(e) => setEmailCopiaTemp(e.target.value)}
+                  onChange={e => setEmailCopiaTemp(e.target.value)}
                   placeholder="adicionar@email.com"
                   className="flex-1"
-                  onKeyPress={(e) => e.key === 'Enter' && adicionarEmailCopia()}
+                  onKeyPress={e => e.key === "Enter" && adicionarEmailCopia()}
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={adicionarEmailCopia}
                   disabled={!emailCopiaTemp}
                 >
@@ -303,10 +306,23 @@ export const VerificacaoEnvioEmail = ({
               Resumo do Envio
             </h4>
             <div className="text-sm text-green-700 space-y-1">
-              <p>• Email principal: <strong>{dadosEnvio.emailPrincipal || 'Não informado'}</strong></p>
-              <p>• Emails em cópia: <strong>{dadosEnvio.emailsCopia.length}</strong></p>
-              <p>• Total de destinatários: <strong>{dadosEnvio.emailPrincipal ? 1 + dadosEnvio.emailsCopia.length : dadosEnvio.emailsCopia.length}</strong></p>
-              <p>• Link válido por: <strong>7 dias</strong></p>
+              <p>
+                • Email principal: <strong>{dadosEnvio.emailPrincipal || "Não informado"}</strong>
+              </p>
+              <p>
+                • Emails em cópia: <strong>{dadosEnvio.emailsCopia.length}</strong>
+              </p>
+              <p>
+                • Total de destinatários:{" "}
+                <strong>
+                  {dadosEnvio.emailPrincipal
+                    ? 1 + dadosEnvio.emailsCopia.length
+                    : dadosEnvio.emailsCopia.length}
+                </strong>
+              </p>
+              <p>
+                • Link válido por: <strong>7 dias</strong>
+              </p>
             </div>
           </Card>
         </div>
@@ -315,8 +331,8 @@ export const VerificacaoEnvioEmail = ({
           <Button variant="outline" onClick={onClose} disabled={enviando}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleEnviar} 
+          <Button
+            onClick={handleEnviar}
             disabled={enviando || !dadosEnvio.emailPrincipal}
             className="flex items-center gap-2"
           >

@@ -1,46 +1,81 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Bot,
+  Brain,
+  Key,
+  Settings,
+  Trash2,
+  Plus,
+  BookOpen,
+  Save,
+  Upload,
+  Mail,
+  Image,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useConfiguracoes } from "@/hooks/useConfiguracoes";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Bot, Brain, Key, Settings, Trash2, Plus, BookOpen, Save, Upload, Mail, Image } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useConfiguracoes } from '@/hooks/useConfiguracoes';
+interface ConfigState {
+  nomeEmpresa: string;
+  emailEmpresa: string;
+  telefoneEmpresa: string;
+  smtpServer: string;
+  smtpPort: string;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpSecure: boolean;
+  logoEmpresa: string;
+  corCabecalho: string;
+  assinaturaEmail: string;
+  apiKeyOpenAI: string;
+  enableAutoDescription: boolean;
+  nomeAgente: string;
+  promptPersona: string;
+  promptObjetivo: string;
+  promptComportamento: string;
+  exemploDescricoes: string[];
+  enableAgente: boolean;
+  limiteFotos: number;
+  tamanhoMaximoFoto: string;
+  formatosPermitidos: string;
+}
 
-const Configuracoes = () => {
-  const { toast } = useToast();
-  const { configuracoes, loading, salvarConfiguracoes, obterConfiguracao } = useConfiguracoes();
-  const [config, setConfig] = useState({
-    // Configurações da Empresa
-    nomeEmpresa: '',
-    emailEmpresa: '',
-    telefoneEmpresa: '',
-    
-    // Configurações de Email SMTP
-    smtpServer: '',
-    smtpPort: '587',
-    smtpUser: '',
-    smtpPassword: '',
-    smtpSecure: true,
-    
-    // Configurações de Relatório
-    logoEmpresa: '',
-    corCabecalho: '#0f766e',
-    assinaturaEmail: '',
-    
-    // Configurações de IA
-    apiKeyOpenAI: '',
-    enableAutoDescription: true,
-    
-    // Configurações do Agente IA
-    nomeAgente: 'PrediBot',
-    promptPersona: 'Você é um especialista em edição de textos técnicos com foco em engenharia civil, com 20 anos de experiência no mercado editorial e especialização em patologia das construções. Possui pós-graduação em Tecnologia de Fachadas e Revestimentos.',
-    promptObjetivo: 'Sua missão é transformar informações técnicas obtidas a partir de fotografias de vistorias técnicas e suas descrições complementares em textos objetivos e claros. O objetivo é descrever com precisão e concisão (máximo de 200 caracteres) as anomalias observadas, de forma compreensível tanto para profissionais técnicos quanto para o público leigo.',
-    promptComportamento: `Analise imagens e descrições complementares de vistorias técnicas.
+const defaultConfig: ConfigState = {
+  // Configurações da Empresa
+  nomeEmpresa: "",
+  emailEmpresa: "",
+  telefoneEmpresa: "",
+
+  // Configurações de Email SMTP
+  smtpServer: "",
+  smtpPort: "587",
+  smtpUser: "",
+  smtpPassword: "",
+  smtpSecure: true,
+
+  // Configurações de Relatório
+  logoEmpresa: "",
+  corCabecalho: "#0f766e",
+  assinaturaEmail: "",
+
+  // Configurações de IA
+  apiKeyOpenAI: "",
+  enableAutoDescription: true,
+
+  // Configurações do Agente IA
+  nomeAgente: "PrediBot",
+  promptPersona:
+    "Você é um especialista em edição de textos técnicos com foco em engenharia civil, com 20 anos de experiência no mercado editorial e especialização em patologia das construções. Possui pós-graduação em Tecnologia de Fachadas e Revestimentos.",
+  promptObjetivo:
+    "Sua missão é transformar informações técnicas obtidas a partir de fotografias de vistorias técnicas e suas descrições complementares em textos objetivos e claros. O objetivo é descrever com precisão e concisão (máximo de 200 caracteres) as anomalias observadas, de forma compreensível tanto para profissionais técnicos quanto para o público leigo.",
+  promptComportamento: `Analise imagens e descrições complementares de vistorias técnicas.
 
 Elabore uma descrição seguindo esta estrutura padrão:
 [Tipo de anomalia] + [Material/Elemento afetado] + [Causa provável]
@@ -50,60 +85,74 @@ Baseie-se nas normas brasileiras e internacionais (como ABNT), boas práticas da
 Adapte a linguagem conforme o meio de divulgação (relatórios técnicos, blogs, redes sociais ou materiais didáticos).
 
 Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
-    exemploDescricoes: [],
-    enableAgente: true,
-    
-    // Configurações Gerais
-    limiteFotos: 10,
-    tamanhoMaximoFoto: '5',
-    formatosPermitidos: 'JPEG, PNG, WebP'
-  });
+  exemploDescricoes: [],
+  enableAgente: true,
 
-  const [novoExemplo, setNovoExemplo] = useState('');
+  // Configurações Gerais
+  limiteFotos: 10,
+  tamanhoMaximoFoto: "5",
+  formatosPermitidos: "JPEG, PNG, WebP",
+};
+
+const Configuracoes = () => {
+  const { toast } = useToast();
+  const { configuracoes, loading, salvarConfiguracoes, obterConfiguracao } = useConfiguracoes();
+  const [config, setConfig] = useState<ConfigState>(defaultConfig);
+
+  const [novoExemplo, setNovoExemplo] = useState("");
   const [editandoExemplo, setEditandoExemplo] = useState<number | null>(null);
 
   // Atualizar estado local quando as configurações do Supabase forem carregadas
   useEffect(() => {
     if (!loading && configuracoes) {
       setConfig({
-        nomeEmpresa: obterConfiguracao('empresa_nome', 'VistoriaApp'),
-        emailEmpresa: obterConfiguracao('empresa_email', 'contato@vistoriaapp.com.br'),
-        telefoneEmpresa: obterConfiguracao('empresa_telefone', '(11) 99999-9999'),
-        
-        smtpServer: obterConfiguracao('smtp_server', ''),
-        smtpPort: obterConfiguracao('smtp_port', '587'),
-        smtpUser: obterConfiguracao('smtp_user', ''),
-        smtpPassword: obterConfiguracao('smtp_password', ''),
-        smtpSecure: obterConfiguracao('smtp_secure', true),
-        
-        logoEmpresa: obterConfiguracao('empresa_logo', ''),
-        corCabecalho: obterConfiguracao('empresa_cor_cabecalho', '#0f766e'),
-        assinaturaEmail: obterConfiguracao('email_assinatura', ''),
-        
-        apiKeyOpenAI: obterConfiguracao('api_key_openai', ''),
-        enableAutoDescription: obterConfiguracao('ia_auto_descricao', true),
-        
-        nomeAgente: obterConfiguracao('agente_nome', 'PrediBot'),
-        promptPersona: obterConfiguracao('agente_prompt_persona', 'Você é um especialista em edição de textos técnicos com foco em engenharia civil...'),
-        promptObjetivo: obterConfiguracao('agente_prompt_objetivo', 'Sua missão é transformar informações técnicas obtidas a partir de fotografias...'),
-        promptComportamento: obterConfiguracao('agente_prompt_comportamento', 'Analise imagens e descrições complementares de vistorias técnicas...'),
-        exemploDescricoes: obterConfiguracao('agente_exemplos_descricoes', []),
-        enableAgente: obterConfiguracao('agente_enable', true),
-        
-        limiteFotos: obterConfiguracao('upload_limite_fotos', 10),
-        tamanhoMaximoFoto: obterConfiguracao('upload_tamanho_maximo', '5'),
-        formatosPermitidos: obterConfiguracao('upload_formatos_permitidos', 'JPEG, PNG, WebP')
+        nomeEmpresa: obterConfiguracao("empresa_nome", "VistoriaApp"),
+        emailEmpresa: obterConfiguracao("empresa_email", "contato@vistoriaapp.com.br"),
+        telefoneEmpresa: obterConfiguracao("empresa_telefone", "(11) 99999-9999"),
+
+        smtpServer: obterConfiguracao("smtp_server", ""),
+        smtpPort: obterConfiguracao("smtp_port", "587"),
+        smtpUser: obterConfiguracao("smtp_user", ""),
+        smtpPassword: obterConfiguracao("smtp_password", ""),
+        smtpSecure: obterConfiguracao("smtp_secure", true),
+
+        logoEmpresa: obterConfiguracao("empresa_logo", ""),
+        corCabecalho: obterConfiguracao("empresa_cor_cabecalho", "#0f766e"),
+        assinaturaEmail: obterConfiguracao("email_assinatura", ""),
+
+        apiKeyOpenAI: obterConfiguracao("api_key_openai", ""),
+        enableAutoDescription: obterConfiguracao("ia_auto_descricao", true),
+
+        nomeAgente: obterConfiguracao("agente_nome", "PrediBot"),
+        promptPersona: obterConfiguracao(
+          "agente_prompt_persona",
+          "Você é um especialista em edição de textos técnicos com foco em engenharia civil...",
+        ),
+        promptObjetivo: obterConfiguracao(
+          "agente_prompt_objetivo",
+          "Sua missão é transformar informações técnicas obtidas a partir de fotografias...",
+        ),
+        promptComportamento: obterConfiguracao(
+          "agente_prompt_comportamento",
+          "Analise imagens e descrições complementares de vistorias técnicas...",
+        ),
+        exemploDescricoes: obterConfiguracao("agente_exemplos_descricoes", []),
+        enableAgente: obterConfiguracao("agente_enable", true),
+
+        limiteFotos: obterConfiguracao("upload_limite_fotos", 10),
+        tamanhoMaximoFoto: obterConfiguracao("upload_tamanho_maximo", "5"),
+        formatosPermitidos: obterConfiguracao("upload_formatos_permitidos", "JPEG, PNG, WebP"),
       });
     }
-  }, [loading, configuracoes]);
+  }, [loading, configuracoes, obterConfiguracao]);
 
-  const handleInputChange = (field: string, value: string | boolean | any[]) => {
+  const handleInputChange = <K extends keyof ConfigState>(field: K, value: ConfigState[K]) => {
     setConfig(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
-    console.log('Salvando configurações:', config);
-    
+    console.log("Salvando configurações:", config);
+
     // Mapear configurações locais para chaves do banco
     const configuracoesBanco = {
       empresa_nome: config.nomeEmpresa,
@@ -111,39 +160,39 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
       empresa_telefone: config.telefoneEmpresa,
       empresa_logo: config.logoEmpresa,
       empresa_cor_cabecalho: config.corCabecalho,
-      
+
       smtp_server: config.smtpServer,
       smtp_port: config.smtpPort,
       smtp_user: config.smtpUser,
       smtp_password: config.smtpPassword,
       smtp_secure: config.smtpSecure,
       email_assinatura: config.assinaturaEmail,
-      
+
       api_key_openai: config.apiKeyOpenAI,
       ia_auto_descricao: config.enableAutoDescription,
-      
+
       agente_nome: config.nomeAgente,
       agente_prompt_persona: config.promptPersona,
       agente_prompt_objetivo: config.promptObjetivo,
       agente_prompt_comportamento: config.promptComportamento,
       agente_exemplos_descricoes: config.exemploDescricoes,
       agente_enable: config.enableAgente,
-      
+
       upload_limite_fotos: config.limiteFotos,
       upload_tamanho_maximo: config.tamanhoMaximoFoto,
-      upload_formatos_permitidos: config.formatosPermitidos
+      upload_formatos_permitidos: config.formatosPermitidos,
     };
 
     const sucesso = await salvarConfiguracoes(configuracoesBanco);
-    
+
     if (sucesso) {
       // Também salvar no localStorage como backup
-      localStorage.setItem('configuracoes', JSON.stringify(config));
+      localStorage.setItem("configuracoes", JSON.stringify(config));
     }
   };
 
   const handleTestEmail = () => {
-    console.log('Testando configurações de email...');
+    console.log("Testando configurações de email...");
     toast({
       title: "Teste de Email",
       description: "Email de teste enviado. Verifique sua caixa de entrada.",
@@ -162,52 +211,53 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
   };
 
   const handleTestAgente = () => {
-    console.log('Testando configurações do agente IA...');
-    
+    console.log("Testando configurações do agente IA...");
+
     // Validar se os prompts estão adequados para vistorias
-    const isValidConfig = config.promptPersona.includes('engenharia') && 
-                         config.promptObjetivo.includes('vistoria') && 
-                         config.promptComportamento.includes('anomalia');
-    
+    const isValidConfig =
+      config.promptPersona.includes("engenharia") &&
+      config.promptObjetivo.includes("vistoria") &&
+      config.promptComportamento.includes("anomalia");
+
     toast({
       title: isValidConfig ? "✅ Agente Otimizado" : "⚠️ Configuração Testada",
-      description: isValidConfig 
-        ? "Agente configurado para descrições técnicas de vistorias." 
+      description: isValidConfig
+        ? "Agente configurado para descrições técnicas de vistorias."
         : "Configure os prompts para otimizar descrições de vistorias.",
-      variant: isValidConfig ? "default" : "destructive"
+      variant: isValidConfig ? "default" : "destructive",
     });
   };
 
   const adicionarExemplo = () => {
     if (novoExemplo.trim()) {
       const novosExemplos = [...config.exemploDescricoes, novoExemplo.trim()];
-      handleInputChange('exemploDescricoes', novosExemplos);
-      setNovoExemplo('');
+      handleInputChange("exemploDescricoes", novosExemplos);
+      setNovoExemplo("");
       toast({
         title: "Exemplo Adicionado",
-        description: "Novo exemplo de descrição cadastrado."
+        description: "Novo exemplo de descrição cadastrado.",
       });
     }
   };
 
   const removerExemplo = (index: number) => {
     const novosExemplos = config.exemploDescricoes.filter((_, i) => i !== index);
-    handleInputChange('exemploDescricoes', novosExemplos);
+    handleInputChange("exemploDescricoes", novosExemplos);
     setEditandoExemplo(null);
     toast({
       title: "Exemplo Removido",
-      description: "Exemplo de descrição removido."
+      description: "Exemplo de descrição removido.",
     });
   };
 
   const editarExemplo = (index: number, novoTexto: string) => {
     const novosExemplos = [...config.exemploDescricoes];
     novosExemplos[index] = novoTexto;
-    handleInputChange('exemploDescricoes', novosExemplos);
+    handleInputChange("exemploDescricoes", novosExemplos);
     setEditandoExemplo(null);
     toast({
       title: "Exemplo Atualizado",
-      description: "Exemplo de descrição atualizado."
+      description: "Exemplo de descrição atualizado.",
     });
   };
 
@@ -246,26 +296,26 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Input
                 id="nomeEmpresa"
                 value={config.nomeEmpresa}
-                onChange={(e) => handleInputChange('nomeEmpresa', e.target.value)}
+                onChange={e => handleInputChange("nomeEmpresa", e.target.value)}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="emailEmpresa">Email da Empresa</Label>
               <Input
                 id="emailEmpresa"
                 type="email"
                 value={config.emailEmpresa}
-                onChange={(e) => handleInputChange('emailEmpresa', e.target.value)}
+                onChange={e => handleInputChange("emailEmpresa", e.target.value)}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="telefoneEmpresa">Telefone</Label>
               <Input
                 id="telefoneEmpresa"
                 value={config.telefoneEmpresa}
-                onChange={(e) => handleInputChange('telefoneEmpresa', e.target.value)}
+                onChange={e => handleInputChange("telefoneEmpresa", e.target.value)}
               />
             </div>
 
@@ -292,7 +342,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                 id="corCabecalho"
                 type="color"
                 value={config.corCabecalho}
-                onChange={(e) => handleInputChange('corCabecalho', e.target.value)}
+                onChange={e => handleInputChange("corCabecalho", e.target.value)}
                 className="h-10"
               />
             </div>
@@ -313,46 +363,46 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Input
                 id="smtpServer"
                 value={config.smtpServer}
-                onChange={(e) => handleInputChange('smtpServer', e.target.value)}
+                onChange={e => handleInputChange("smtpServer", e.target.value)}
                 placeholder="smtp.gmail.com"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="smtpPort">Porta</Label>
                 <Input
                   id="smtpPort"
                   value={config.smtpPort}
-                  onChange={(e) => handleInputChange('smtpPort', e.target.value)}
+                  onChange={e => handleInputChange("smtpPort", e.target.value)}
                 />
               </div>
               <div className="flex items-center space-x-2 pt-6">
                 <Switch
                   checked={config.smtpSecure}
-                  onCheckedChange={(checked) => handleInputChange('smtpSecure', checked)}
+                  onCheckedChange={checked => handleInputChange("smtpSecure", checked)}
                 />
                 <Label>SSL/TLS</Label>
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="smtpUser">Usuário</Label>
               <Input
                 id="smtpUser"
                 value={config.smtpUser}
-                onChange={(e) => handleInputChange('smtpUser', e.target.value)}
+                onChange={e => handleInputChange("smtpUser", e.target.value)}
                 placeholder="seu-email@gmail.com"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="smtpPassword">Senha</Label>
               <Input
                 id="smtpPassword"
                 type="password"
                 value={config.smtpPassword}
-                onChange={(e) => handleInputChange('smtpPassword', e.target.value)}
+                onChange={e => handleInputChange("smtpPassword", e.target.value)}
               />
             </div>
 
@@ -361,7 +411,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Textarea
                 id="assinaturaEmail"
                 value={config.assinaturaEmail}
-                onChange={(e) => handleInputChange('assinaturaEmail', e.target.value)}
+                onChange={e => handleInputChange("assinaturaEmail", e.target.value)}
                 placeholder="Atenciosamente,&#10;Equipe VistoriaApp"
                 rows={3}
               />
@@ -386,7 +436,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
             <div className="flex items-center space-x-2">
               <Switch
                 checked={config.enableAgente}
-                onCheckedChange={(checked) => handleInputChange('enableAgente', checked)}
+                onCheckedChange={checked => handleInputChange("enableAgente", checked)}
               />
               <Label>Habilitar Agente IA Especialista</Label>
             </div>
@@ -396,7 +446,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Input
                 id="nomeAgente"
                 value={config.nomeAgente}
-                onChange={(e) => handleInputChange('nomeAgente', e.target.value)}
+                onChange={e => handleInputChange("nomeAgente", e.target.value)}
                 placeholder="Ex: Theo, Maria, João..."
               />
             </div>
@@ -411,7 +461,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Textarea
                 id="promptPersona"
                 value={config.promptPersona}
-                onChange={(e) => handleInputChange('promptPersona', e.target.value)}
+                onChange={e => handleInputChange("promptPersona", e.target.value)}
                 placeholder="Ex: Especialista em engenharia civil com 20 anos de experiência..."
                 rows={6}
                 className="font-mono text-sm"
@@ -428,7 +478,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Textarea
                 id="promptObjetivo"
                 value={config.promptObjetivo}
-                onChange={(e) => handleInputChange('promptObjetivo', e.target.value)}
+                onChange={e => handleInputChange("promptObjetivo", e.target.value)}
                 placeholder="Ex: Transformar fotografias de vistorias em descrições técnicas precisas..."
                 rows={4}
                 className="font-mono text-sm"
@@ -445,7 +495,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Textarea
                 id="promptComportamento"
                 value={config.promptComportamento}
-                onChange={(e) => handleInputChange('promptComportamento', e.target.value)}
+                onChange={e => handleInputChange("promptComportamento", e.target.value)}
                 placeholder="Ex: Use estrutura [Anomalia] + [Material] + [Causa] baseado em normas ABNT..."
                 rows={8}
                 className="font-mono text-sm"
@@ -460,9 +510,10 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                   Exemplos do Seu Padrão de Descrições
                 </Label>
               </div>
-              
+
               <p className="text-sm text-muted-foreground">
-                Adicione exemplos de como você costuma descrever vistorias. O agente aprenderá seu estilo de escrita.
+                Adicione exemplos de como você costuma descrever vistorias. O agente aprenderá seu
+                estilo de escrita.
               </p>
 
               {/* Adicionar novo exemplo */}
@@ -472,12 +523,12 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                   <Textarea
                     id="novoExemplo"
                     value={novoExemplo}
-                    onChange={(e) => setNovoExemplo(e.target.value)}
+                    onChange={e => setNovoExemplo(e.target.value)}
                     placeholder="Ex: Fissura horizontal na alvenaria - bloco cerâmico - movimentação térmica..."
                     rows={2}
                     className="flex-1"
                   />
-                  <Button 
+                  <Button
                     onClick={adicionarExemplo}
                     disabled={!novoExemplo.trim()}
                     size="sm"
@@ -494,18 +545,21 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                   <Label>Seus Exemplos ({config.exemploDescricoes.length})</Label>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {config.exemploDescricoes.map((exemplo, index) => (
-                      <div key={index} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/30">
+                      <div
+                        key={index}
+                        className="flex items-start gap-2 p-3 border rounded-lg bg-muted/30"
+                      >
                         {editandoExemplo === index ? (
                           <Textarea
                             value={exemplo}
-                            onChange={(e) => {
+                            onChange={e => {
                               const novosExemplos = [...config.exemploDescricoes];
                               novosExemplos[index] = e.target.value;
-                              handleInputChange('exemploDescricoes', novosExemplos);
+                              handleInputChange("exemploDescricoes", novosExemplos);
                             }}
                             onBlur={() => setEditandoExemplo(null)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && e.ctrlKey) {
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && e.ctrlKey) {
                                 setEditandoExemplo(null);
                               }
                             }}
@@ -514,7 +568,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                             autoFocus
                           />
                         ) : (
-                          <div 
+                          <div
                             className="flex-1 text-sm cursor-pointer hover:bg-muted/50 p-2 rounded"
                             onClick={() => setEditandoExemplo(index)}
                             title="Clique para editar"
@@ -533,7 +587,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                       </div>
                     ))}
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded">
                     <Badge variant="secondary" className="text-xs">
                       ✓ {config.exemploDescricoes.length} exemplos
@@ -566,7 +620,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                 id="apiKeyOpenAI"
                 type="password"
                 value={config.apiKeyOpenAI}
-                onChange={(e) => handleInputChange('apiKeyOpenAI', e.target.value)}
+                onChange={e => handleInputChange("apiKeyOpenAI", e.target.value)}
                 placeholder="sk-... ou gsk_..."
               />
               <p className="text-sm text-gray-600 mt-1">
@@ -577,7 +631,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
             <div className="flex items-center space-x-2">
               <Switch
                 checked={config.enableAutoDescription}
-                onCheckedChange={(checked) => handleInputChange('enableAutoDescription', checked)}
+                onCheckedChange={checked => handleInputChange("enableAutoDescription", checked)}
               />
               <Label>Habilitar descrição automática de imagens</Label>
             </div>
@@ -599,7 +653,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                 id="limiteFotos"
                 type="number"
                 value={config.limiteFotos}
-                onChange={(e) => handleInputChange('limiteFotos', e.target.value)}
+                onChange={e => handleInputChange("limiteFotos", e.target.value)}
                 min="1"
                 max="50"
               />
@@ -611,7 +665,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
                 id="tamanhoMaximoFoto"
                 type="number"
                 value={config.tamanhoMaximoFoto}
-                onChange={(e) => handleInputChange('tamanhoMaximoFoto', e.target.value)}
+                onChange={e => handleInputChange("tamanhoMaximoFoto", e.target.value)}
                 min="1"
                 max="20"
               />
@@ -622,7 +676,7 @@ Mantenha sempre um equilíbrio entre rigor técnico, clareza e acessibilidade.`,
               <Input
                 id="formatosPermitidos"
                 value={config.formatosPermitidos}
-                onChange={(e) => handleInputChange('formatosPermitidos', e.target.value)}
+                onChange={e => handleInputChange("formatosPermitidos", e.target.value)}
                 readOnly
               />
             </div>

@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import StyledLoader from "@/components/StyledLoader";
 
 interface ListaVistoriasSupabaseProps {
   onNovaVistoria: () => void;
@@ -156,24 +157,24 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando vistorias...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16">
+        <StyledLoader />
+        <p className="mt-6 text-sm text-foreground">Carregando vistorias...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Vistorias</h2>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-2xl font-bold text-foreground">Vistorias</h2>
         {!isRestrict && (
-          <Button onClick={onNovaVistoria} className="bg-teal-600 hover:bg-teal-700">
-            <Plus size={18} className="mr-2" />
-            Nova Vistoria
-          </Button>
+          <div className="flex justify-start sm:justify-end">
+            <Button onClick={onNovaVistoria} className="bg-teal-600 hover:bg-teal-700">
+              <Plus size={18} className="mr-2" />
+              Nova Vistoria
+            </Button>
+          </div>
         )}
       </div>
 
@@ -238,7 +239,7 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
             </div>
           </div>
         </div>
-        <div>
+        <div className="flex">
           <Button variant="outline" onClick={handleLimparFiltros} className="whitespace-nowrap">
             Limpar filtros
           </Button>
@@ -247,15 +248,15 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
 
       {vistoriasFiltradas.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
+          <div className="text-muted-foreground mb-4">
             <Building size={48} className="mx-auto mb-4" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             {vistorias.length === 0
               ? "Nenhuma vistoria encontrada"
               : "Nenhuma vistoria corresponde ao filtro"}
           </h3>
-          <p className="text-gray-500 mb-6">
+          <p className="text-muted-foreground mb-6">
             {vistorias.length === 0
               ? "Comece criando sua primeira vistoria."
               : "Tente ajustar os filtros de busca."}
@@ -270,14 +271,17 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
       ) : (
         <div className="grid gap-6">
           {vistoriasFiltradas.map(vistoria => (
-            <Card key={vistoria.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={vistoria.id}
+              className="hover:shadow-md transition-shadow bg-card text-card-foreground border border-border"
+            >
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <CardTitle className="flex flex-wrap items-center gap-2">
                     <span>{vistoria.condominio?.nome}</span>
                     <Badge className={getStatusColor(vistoria.status)}>{vistoria.status}</Badge>
                   </CardTitle>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -322,36 +326,36 @@ const ListaVistoriasSupabase = ({ onNovaVistoria }: ListaVistoriasSupabaseProps)
                   <div className="flex items-center space-x-2">
                     <Calendar className="text-teal-600" size={16} />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Data</p>
-                      <p className="text-gray-900">{formatDate(vistoria.data_vistoria)}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Data</p>
+                      <p className="text-foreground">{formatDate(vistoria.data_vistoria)}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <User className="text-teal-600" size={16} />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Responsável</p>
-                      <p className="text-gray-900">{vistoria.responsavel}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Responsável</p>
+                      <p className="text-foreground">{vistoria.responsavel}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Building className="text-teal-600" size={16} />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Nº Interno</p>
-                      <p className="text-gray-900">#{vistoria.numero_interno}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Nº Interno</p>
+                      <p className="text-foreground">#{vistoria.numero_interno}</p>
                     </div>
                   </div>
                 </div>
 
                 {vistoria.observacoes_gerais && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Observações:</span>{" "}
+                  <div className="mt-4 p-3 rounded bg-muted">
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Observações:</span>{" "}
                       {vistoria.observacoes_gerais}
                     </p>
                   </div>
                 )}
 
-                <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+                <div className="mt-4 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                   <span>{vistoria.grupos.length} grupo(s) de vistoria</span>
                   <span>
                     Atualizada em {formatDate(vistoria.updated_at || vistoria.created_at || "")}

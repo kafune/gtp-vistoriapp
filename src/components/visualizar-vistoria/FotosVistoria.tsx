@@ -66,7 +66,7 @@ const FotosVistoria = ({ fotos, grupoNome, grupoIndex }: FotosVistoriaProps) => 
   return (
     <div className="space-y-4">
       {grupoNome && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h4 className="font-medium text-gray-900">Fotos - {grupoNome}</h4>
           <Badge variant="outline">{fotos.length} foto(s)</Badge>
         </div>

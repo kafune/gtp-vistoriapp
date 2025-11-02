@@ -11,6 +11,7 @@ import GrupoVistoria from "./nova-vistoria/GrupoVistoria";
 import ObservacoesGerais from "./nova-vistoria/ObservacoesGerais";
 import SeletorTemplate from "./nova-vistoria/SeletorTemplate";
 import { useNovaVistoriaForm } from "./nova-vistoria/useNovaVistoriaForm";
+import StyledLoader from "./StyledLoader";
 
 interface NovaVistoriaSupabaseProps {
   onPreview?: (data: VistoriaSupabase) => void;
@@ -57,26 +58,24 @@ const NovaVistoriaSupabase = ({ onPreview, onBack }: NovaVistoriaSupabaseProps) 
 
   if (loadingCondominios) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando dados...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16">
+        <StyledLoader />
+        <p className="mt-6 text-sm text-gray-600">Carregando dados...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={onBack} variant="outline">
             <ArrowLeft size={16} className="mr-2" />
             Voltar
           </Button>
-          <h2 className="text-2xl font-bold text-gray-900">Nova Vistoria</h2>
+          <h2 className="text-2xl font-bold text-foreground">Nova Vistoria</h2>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 sm:justify-end">
           <Button onClick={handleSave} disabled={saving} className="bg-teal-600 hover:bg-teal-700">
             <Save size={18} className="mr-2" />
             {saving ? "Salvando..." : "Salvar Vistoria"}
@@ -92,7 +91,7 @@ const NovaVistoriaSupabase = ({ onPreview, onBack }: NovaVistoriaSupabaseProps) 
 
       {/* Seletor de Template */}
       <div className="bg-white p-6 rounded-lg border shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">Template de Vistoria</h3>
           <SeletorTemplate
             condominioId={formData.condominio_id}

@@ -511,15 +511,15 @@ const PreviewPDFSupabase = ({ vistoria: vistoriaInicial, onBack }: PreviewPDFSup
   return (
     <div className="space-y-6">
       {/* Header com ações */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={onBack} variant="outline">
             <ArrowLeft size={18} className="mr-2" />
             Voltar
           </Button>
           <h2 className="text-2xl font-bold text-gray-900">Visualizar Relatório PDF</h2>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 md:justify-end">
           <Button onClick={() => setMostrarVerificacaoEmail(true)} variant="outline">
             <Mail size={18} className="mr-2" />
             Enviar Email
@@ -535,78 +535,45 @@ const PreviewPDFSupabase = ({ vistoria: vistoriaInicial, onBack }: PreviewPDFSup
       </div>
 
       {/* Preview do PDF */}
-      <Card className="max-w-none mx-auto" style={{ width: "210mm", maxWidth: "210mm" }}>
-        <div ref={reportRef} className="bg-white">
-          {pages.map((page, index) => {
-            const pageNumber = index + 1;
+      <div className="w-full overflow-auto">
+        <Card className="mx-auto" style={{ width: "210mm", maxWidth: "210mm" }}>
+          <div ref={reportRef} className="bg-white">
+            {pages.map((page, index) => {
+              const pageNumber = index + 1;
 
-            if (page.variant === "summary") {
-              return (
-                <PdfPage key={page.key} className="gap-3">
-                  <PdfReportHeader />
-                  <PdfReportInfo
-                    dataEmissao={dataEmissaoAtual}
-                    hora={horaAtual}
-                    usuario={vistoria.responsavel || "Não informado"}
-                    empreendimento={vistoria.condominio?.nome || "Não informado"}
-                    numeroInterno={vistoria.numero_interno}
-                    dataVistoria={formatDate(vistoria.data_vistoria)}
-                  />
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <p className="text-sm">Nenhum sistema de vistoria cadastrado.</p>
-                      <p className="text-xs mt-2">O relatório contém apenas informações gerais.</p>
+              if (page.variant === "summary") {
+                return (
+                  <PdfPage key={page.key} className="gap-3">
+                    <PdfReportHeader />
+                    <PdfReportInfo
+                      dataEmissao={dataEmissaoAtual}
+                      hora={horaAtual}
+                      usuario={vistoria.responsavel || "Não informado"}
+                      empreendimento={vistoria.condominio?.nome || "Não informado"}
+                      numeroInterno={vistoria.numero_interno}
+                      dataVistoria={formatDate(vistoria.data_vistoria)}
+                    />
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center text-gray-500">
+                        <p className="text-sm">Nenhum sistema de vistoria cadastrado.</p>
+                        <p className="text-xs mt-2">
+                          O relatório contém apenas informações gerais.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  {renderRodape(pageNumber, totalPages)}
-                </PdfPage>
-              );
-            }
+                    {renderRodape(pageNumber, totalPages)}
+                  </PdfPage>
+                );
+              }
 
-            if (!page.grupo || typeof page.groupIndex !== "number") {
-              return null;
-            }
+              if (!page.grupo || typeof page.groupIndex !== "number") {
+                return null;
+              }
 
-            if (page.variant === "no-photos") {
-              return (
-                <PdfPage key={page.key} className="gap-3">
-                  <PdfReportHeader />
-                  <PdfReportInfo
-                    dataEmissao={dataEmissaoAtual}
-                    hora={horaAtual}
-                    usuario={vistoria.responsavel || "Não informado"}
-                    empreendimento={vistoria.condominio?.nome || "Não informado"}
-                    numeroInterno={vistoria.numero_interno}
-                    dataVistoria={formatDate(vistoria.data_vistoria)}
-                  />
-                  {renderTabelaGrupo(page.grupo, page.groupIndex)}
-
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <p className="text-sm">
-                        Nenhuma evidência fotográfica disponível para este sistema.
-                      </p>
-                      <p className="text-xs mt-2">
-                        Sistema: {page.grupo.ambiente} - {page.grupo.grupo}
-                      </p>
-                    </div>
-                  </div>
-
-                  {renderRodape(pageNumber, totalPages)}
-                </PdfPage>
-              );
-            }
-
-            const titulo =
-              page.variant === "first"
-                ? `Evidências Fotográficas - Sistema ${page.groupIndex + 1}`
-                : `Evidências Fotográficas - Sistema ${page.groupIndex + 1} (Continuação)`;
-
-            return (
-              <PdfPage key={page.key} className="gap-3">
-                <PdfReportHeader />
-                {page.variant === "first" && (
-                  <>
+              if (page.variant === "no-photos") {
+                return (
+                  <PdfPage key={page.key} className="gap-3">
+                    <PdfReportHeader />
                     <PdfReportInfo
                       dataEmissao={dataEmissaoAtual}
                       hora={horaAtual}
@@ -616,26 +583,63 @@ const PreviewPDFSupabase = ({ vistoria: vistoriaInicial, onBack }: PreviewPDFSup
                       dataVistoria={formatDate(vistoria.data_vistoria)}
                     />
                     {renderTabelaGrupo(page.grupo, page.groupIndex)}
-                  </>
-                )}
 
-                <h4 className="text-sm font-semibold mb-2 text-brand-purple">{titulo}</h4>
-
-                <div className="flex gap-3 flex-1">
-                  {page.photos?.map((foto, fotoIndex) => (
-                    <div key={`${page.key}-${fotoIndex}`} className="flex-1 flex">
-                      {renderFotoCard(foto, (page.startIndex ?? 0) + fotoIndex, page.groupIndex)}
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center text-gray-500">
+                        <p className="text-sm">
+                          Nenhuma evidência fotográfica disponível para este sistema.
+                        </p>
+                        <p className="text-xs mt-2">
+                          Sistema: {page.grupo.ambiente} - {page.grupo.grupo}
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                  {page.photos && page.photos.length === 1 && <div className="flex-1" />}
-                </div>
 
-                {renderRodape(pageNumber, totalPages)}
-              </PdfPage>
-            );
-          })}
-        </div>
-      </Card>
+                    {renderRodape(pageNumber, totalPages)}
+                  </PdfPage>
+                );
+              }
+
+              const titulo =
+                page.variant === "first"
+                  ? `Evidências Fotográficas - Sistema ${page.groupIndex + 1}`
+                  : `Evidências Fotográficas - Sistema ${page.groupIndex + 1} (Continuação)`;
+
+              return (
+                <PdfPage key={page.key} className="gap-3">
+                  <PdfReportHeader />
+                  {page.variant === "first" && (
+                    <>
+                      <PdfReportInfo
+                        dataEmissao={dataEmissaoAtual}
+                        hora={horaAtual}
+                        usuario={vistoria.responsavel || "Não informado"}
+                        empreendimento={vistoria.condominio?.nome || "Não informado"}
+                        numeroInterno={vistoria.numero_interno}
+                        dataVistoria={formatDate(vistoria.data_vistoria)}
+                      />
+                      {renderTabelaGrupo(page.grupo, page.groupIndex)}
+                    </>
+                  )}
+
+                  <h4 className="text-sm font-semibold mb-2 text-brand-purple">{titulo}</h4>
+
+                  <div className="flex gap-3 flex-1">
+                    {page.photos?.map((foto, fotoIndex) => (
+                      <div key={`${page.key}-${fotoIndex}`} className="flex-1 flex">
+                        {renderFotoCard(foto, (page.startIndex ?? 0) + fotoIndex, page.groupIndex)}
+                      </div>
+                    ))}
+                    {page.photos && page.photos.length === 1 && <div className="flex-1" />}
+                  </div>
+
+                  {renderRodape(pageNumber, totalPages)}
+                </PdfPage>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
 
       {/* Modal de Verificação de Email */}
       <VerificacaoEnvioEmail

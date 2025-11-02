@@ -56,7 +56,7 @@ export interface VistoriaSupabase {
   };
 }
 
-interface SupabaseGrupoRow {
+interface SupabaseGrupoResumo {
   id: string;
   vistoria_id: string;
   ambiente: string;
@@ -65,7 +65,6 @@ interface SupabaseGrupoRow {
   status: string;
   parecer?: string | null;
   ordem?: number | null;
-  fotos_vistoria?: FotoVistoriaSupabase[] | null;
   modo_checklist?: boolean | null;
   checklist_tecnico?: ChecklistTecnico | string | null;
 }
@@ -83,7 +82,7 @@ interface SupabaseVistoriaRow {
   created_at?: string;
   updated_at?: string;
   condominio?: { id: string; nome: string } | { id: string; nome: string }[] | null;
-  grupos_vistoria?: SupabaseGrupoRow[] | null;
+  grupos_vistoria?: SupabaseGrupoResumo[] | null;
 }
 
 export const useVistoriasSupabase = () => {
@@ -108,8 +107,16 @@ export const useVistoriasSupabase = () => {
           *,
           condominio:condominios(id, nome),
           grupos_vistoria(
-            *,
-            fotos_vistoria(*)
+            id,
+            vistoria_id,
+            ambiente,
+            grupo,
+            item,
+            status,
+            parecer,
+            ordem,
+            modo_checklist,
+            checklist_tecnico
           )
         `,
         )
@@ -145,7 +152,7 @@ export const useVistoriasSupabase = () => {
               status: grupo.status,
               parecer: grupo.parecer || "",
               ordem: grupo.ordem || 0,
-              fotos: grupo.fotos_vistoria || [],
+              fotos: [],
               modo_checklist: Boolean(grupo.modo_checklist),
               checklist_tecnico: checklist,
             };

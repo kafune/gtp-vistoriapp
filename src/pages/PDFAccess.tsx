@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useVistoriasSupabase";
 import { usePDFGenerator } from "@/hooks/usePDFGenerator";
 import PreviewPDFSupabase from "@/components/visualizar-vistoria/PreviewPDFSupabase";
+import StyledLoader from "@/components/StyledLoader";
 
 interface SupabaseGrupoRow {
   id: string;
@@ -194,9 +195,9 @@ const PDFAccess = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="p-8 max-w-md mx-auto">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-purple mx-auto mb-4"></div>
-            <p>Verificando acesso...</p>
+          <div className="flex flex-col items-center text-center">
+            <StyledLoader />
+            <p className="mt-4 text-gray-600">Verificando acesso...</p>
           </div>
         </Card>
       </div>

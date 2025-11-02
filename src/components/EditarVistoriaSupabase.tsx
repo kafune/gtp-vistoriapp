@@ -58,7 +58,7 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando vistoria...</p>
+          <p className="mt-4 text-foreground">Carregando vistoria...</p>
         </div>
       </div>
     );
@@ -73,7 +73,7 @@ const EditarVistoriaSupabase = ({ vistoriaId, onPreview, onBack }: EditarVistori
             Voltar
           </Button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Editar Vistoria</h2>
+            <h2 className="text-2xl font-bold text-foreground">Editar Vistoria</h2>
             <p className="text-gray-600">#{formData.numero_interno}</p>
           </div>
         </div>

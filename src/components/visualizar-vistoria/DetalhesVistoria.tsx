@@ -90,6 +90,10 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
     setReloadKey(prev => prev + 1);
   }, [vistoriaInicial]);
 
+  useEffect(() => {
+    recarregarVistoria();
+  }, [recarregarVistoria]);
+
   // Recarregar dados quando a página for focada (usuário voltar da edição)
   useEffect(() => {
     const handleFocus = () => {
@@ -136,8 +140,8 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
   return (
     <div className="space-y-6" key={`detalhes-${reloadKey}`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={onBack}>
             <ArrowLeft size={16} className="mr-2" />
             Voltar
@@ -147,7 +151,7 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
             <p className="text-gray-600">Vistoria #{vistoria.numero_interno}</p>
           </div>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 md:justify-end">
           {onEdit && vistoria.id && (
             <Button variant="outline" onClick={() => onEdit(vistoria.id!)}>
               <Edit size={16} className="mr-2" />
@@ -228,8 +232,8 @@ const DetalhesVistoria = ({ vistoria: vistoriaInicial, onBack, onEdit }: Detalhe
         {vistoria.grupos.map((grupo, index) => (
           <Card key={`${grupo.id}-${reloadKey}-${index}`}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>
+              <CardTitle className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <span className="font-normal sm:font-semibold">
                   Grupo {index + 1}: {grupo.ambiente} - {grupo.grupo}
                 </span>
                 <Badge className={getStatusColor(grupo.status)}>{grupo.status}</Badge>

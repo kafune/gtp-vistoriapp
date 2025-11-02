@@ -31,50 +31,6 @@ const ParecerAssistenteIA: React.FC<ParecerAssistenteIAProps> = ({
     }
   }, []);
 
-  const iniciarGravacao = useCallback(async () => {
-    if (!gravacaoDisponivel) {
-      toast({
-        title: "Recurso indisponível",
-        description: "Seu navegador não suporta gravação de áudio ou o acesso foi bloqueado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = event => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(track => track.stop());
-        tratarGravacaoFinalizada();
-      };
-
-      mediaRecorder.start();
-      mediaRecorderRef.current = mediaRecorder;
-      setGravando(true);
-      toast({
-        title: "Gravando áudio",
-        description: "Fale claramente o parecer técnico. Clique em parar quando terminar.",
-      });
-    } catch (error) {
-      console.error("Erro ao iniciar gravação:", error);
-      setGravacaoDisponivel(false);
-      toast({
-        title: "Não foi possível acessar o microfone",
-        description: "Verifique as permissões do navegador e tente novamente.",
-        variant: "destructive",
-      });
-    }
-  }, [gravacaoDisponivel, toast, tratarGravacaoFinalizada]);
-
   const enviarParaIA = useCallback(
     async ({ blob, texto }: { blob?: Blob; texto?: string }) => {
       setProcessando(true);
@@ -128,6 +84,50 @@ const ParecerAssistenteIA: React.FC<ParecerAssistenteIAProps> = ({
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0].type || "audio/webm" });
     await enviarParaIA({ blob });
   }, [toast, enviarParaIA]);
+
+  const iniciarGravacao = useCallback(async () => {
+    if (!gravacaoDisponivel) {
+      toast({
+        title: "Recurso indisponível",
+        description: "Seu navegador não suporta gravação de áudio ou o acesso foi bloqueado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        tratarGravacaoFinalizada();
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setGravando(true);
+      toast({
+        title: "Gravando áudio",
+        description: "Fale claramente o parecer técnico. Clique em parar quando terminar.",
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar gravação:", error);
+      setGravacaoDisponivel(false);
+      toast({
+        title: "Não foi possível acessar o microfone",
+        description: "Verifique as permissões do navegador e tente novamente.",
+        variant: "destructive",
+      });
+    }
+  }, [gravacaoDisponivel, toast, tratarGravacaoFinalizada]);
 
   const pararGravacao = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {

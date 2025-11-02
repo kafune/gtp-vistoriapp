@@ -136,8 +136,8 @@ const GrupoVistoria = ({
   return (
     <Card className={`border-l-4 ${modoChecklist ? "border-l-primary" : "border-l-teal-500"}`}>
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <CardTitle className="text-lg font-semibold">Grupo de Vistoria {index + 1}</CardTitle>
             {modoChecklist && (
               <Badge variant="default" className="flex items-center gap-1">
@@ -146,7 +146,7 @@ const GrupoVistoria = ({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
             <div className="flex items-center gap-2">
               <Label htmlFor={`modo-checklist-${index}`} className="text-sm">
                 Modo Técnico
